@@ -428,10 +428,47 @@ body {
 	display: flex;
 	justify-content: space-between;
 	align-items: center;
+	flex-wrap: wrap;
+	gap: 15px;
+}
+
+.modal-header-left {
+	display: flex;
+	flex-direction: column;
+	gap: 15px;
+	flex: 1;
+	min-width: 200px;
 }
 
 .modal-header h3 {
 	margin: 0;
+}
+
+.complexity-coefficient-sticky {
+	display: flex;
+	align-items: center;
+	gap: 10px;
+	flex-wrap: wrap;
+}
+
+.complexity-coefficient-sticky label {
+	margin: 0;
+	font-weight: 500;
+	color: #555;
+	white-space: nowrap;
+}
+
+.complexity-coefficient-sticky input {
+	width: 100px;
+	padding: 8px;
+	border: 1px solid #ddd;
+	border-radius: 4px;
+	font-size: 14px;
+}
+
+.complexity-coefficient-sticky input:focus {
+	outline: none;
+	border-color: #667eea;
 }
 
 .modal-close {
@@ -595,4 +632,212 @@ body {
 	padding: 15px 40px;
 	font-size: 1.2em;
 	text-decoration: none;
+}
+
+/* Стили для страницы изделий */
+.search-box {
+	margin-bottom: 20px;
+}
+
+.search-box input {
+	width: 100%;
+	max-width: 400px;
+	padding: 8px 12px;
+	border: 1px solid #ddd;
+	border-radius: 4px;
+	font-size: 14px;
+}
+
+.empty-state {
+	text-align: center;
+	padding: 40px;
+	color: #666;
+	font-size: 16px;
+}
+
+.action-buttons {
+	display: flex;
+	gap: 5px;
+	flex-wrap: wrap;
+}
+
+.action-buttons .btn {
+	padding: 4px 8px;
+	font-size: 12px;
+	min-width: auto;
+}
+
+.pagination {
+	margin-top: 20px;
+	text-align: center;
+}
+
+.pagination-controls {
+	display: flex;
+	justify-content: center;
+	align-items: center;
+	gap: 10px;
+}
+
+.pagination-controls span {
+	padding: 0 10px;
+}
+
+/* Стили для страницы обновлений БД */
+.info-box {
+	background-color: #fff3cd;
+	border: 1px solid #ffc107;
+	border-radius: 4px;
+	padding: 15px;
+	margin-bottom: 20px;
+}
+
+.info-box p {
+	margin: 0;
+	color: #856404;
+}
+
+.migrations-status {
+	background: white;
+	border-radius: 4px;
+	padding: 20px;
+}
+
+.status-summary {
+	display: flex;
+	gap: 30px;
+	margin-bottom: 30px;
+	padding-bottom: 20px;
+	border-bottom: 1px solid #ddd;
+}
+
+.status-item {
+	font-size: 14px;
+}
+
+.pending-count {
+	color: #dc3545;
+	font-weight: bold;
+}
+
+.pending-migrations,
+.applied-migrations {
+	margin-top: 20px;
+}
+
+.pending-migrations h3,
+.applied-migrations h3 {
+	margin-bottom: 15px;
+	font-size: 16px;
+}
+
+.migrations-list {
+	list-style: none;
+	padding: 0;
+	margin: 0;
+}
+
+.migrations-list li {
+	display: flex;
+	justify-content: space-between;
+	align-items: center;
+	padding: 12px;
+	margin-bottom: 8px;
+	background-color: #f8f9fa;
+	border-radius: 4px;
+	border: 1px solid #dee2e6;
+}
+
+.migrations-list li.applied {
+	background-color: #d4edda;
+	border-color: #c3e6cb;
+}
+
+.migrations-list li.dangerous {
+	background-color: #f8d7da;
+	border-color: #f5c6cb;
+}
+
+.migration-details {
+	flex: 1;
+	display: flex;
+	flex-direction: column;
+	gap: 5px;
+}
+
+.migration-name {
+	font-family: monospace;
+	font-size: 13px;
+	color: #333;
+	font-weight: bold;
+}
+
+.migration-description {
+	font-size: 12px;
+	color: #666;
+	font-style: italic;
+}
+
+.danger-badge {
+	display: inline-block;
+	background-color: #dc3545;
+	color: white;
+	padding: 2px 8px;
+	border-radius: 3px;
+	font-size: 11px;
+	font-weight: bold;
+}
+
+.safe-badge {
+	display: inline-block;
+	background-color: #28a745;
+	color: white;
+	padding: 2px 8px;
+	border-radius: 3px;
+	font-size: 11px;
+	font-weight: bold;
+}
+
+.status-badge {
+	color: #155724;
+	font-weight: bold;
+	font-size: 12px;
+}
+
+.success-message {
+	background-color: #d4edda;
+	border: 1px solid #c3e6cb;
+	color: #155724;
+	padding: 15px;
+	border-radius: 4px;
+	margin-top: 20px;
+}
+
+/* Стили для печати */
+@media print {
+	.sidebar,
+	.btn,
+	.action-buttons,
+	.modal-close,
+	.no-print {
+		display: none !important;
+	}
+
+	.workspace {
+		margin: 0;
+		padding: 0;
+	}
+
+	.page-content {
+		margin: 0;
+		padding: 0;
+	}
+
+	.calculator-results {
+		page-break-inside: avoid;
+	}
+
+	.result-row {
+		page-break-inside: avoid;
+	}
 }

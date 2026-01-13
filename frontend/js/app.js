@@ -28,6 +28,12 @@ document.addEventListener('DOMContentLoaded', async () => {
 	if (typeof CoefficientsPage !== 'undefined') {
 		router.register('coefficients', CoefficientsPage.load.bind(CoefficientsPage));
 	}
+	if (typeof ProductsPage !== 'undefined') {
+		router.register('products', ProductsPage.load.bind(ProductsPage));
+	}
+	if (typeof MigrationsPage !== 'undefined') {
+		router.register('migrations', MigrationsPage.load.bind(MigrationsPage), { requiresSuperAdmin: true });
+	}
 	if (typeof UsersPage !== 'undefined') {
 		router.register('users', UsersPage.load.bind(UsersPage), { requiresAdmin: true });
 	}

@@ -3,7 +3,15 @@
  */
 
 const CalculatorPage = {
+	currentResult: null,
+	currentCalculationId: null,
+
 	async load(container) {
+		// Очищаем данные предыдущего расчета
+		this.operations = [];
+		this.currentResult = null;
+		this.currentCalculationId = null;
+
 		container.innerHTML = `
 			<div class="page-content">
 				<h1 class="page-title">Основной калькулятор</h1>
@@ -43,6 +51,16 @@ const CalculatorPage = {
 				<div id="results" class="calculator-results" style="display: none;"></div>
 			</div>
 		`;
+
+		// Проверяем, есть ли ID расчета в URL для редактирования
+		const urlParams = new URLSearchParams(window.location.search);
+		const calculationId = urlParams.get('edit');
+		if (calculationId) {
+			await this.loadCalculationForEdit(calculationId);
+		} else {
+			// Если не режим редактирования, очищаем список операций
+			this.renderOperations();
+		}
 
 		await this.loadMaterials();
 		await this.loadProductTypes();
@@ -112,6 +130,54 @@ const CalculatorPage = {
 
 	operations: [],
 
+	async loadCalculationForEdit(calculationId) {
+		try {
+			const calculation = await API.getCalculation(calculationId);
+			if (!calculation) {
+				alert('Расчет не найден');
+				return;
+			}
+
+			// Заполняем форму
+			document.getElementById('productName').value = calculation.product_name || '';
+			document.getElementById('materialSelect').value = calculation.material_id || '';
+			document.getElementById('productTypeSelect').value = calculation.product_type_id || '';
+
+			// Загружаем параметры после выбора типа изделия
+			if (calculation.product_type_id) {
+				await this.loadProductTypes();
+				document.getElementById('productTypeSelect').value = calculation.product_type_id;
+				this.loadParameters();
+
+				// Заполняем параметры после небольшой задержки
+				setTimeout(() => {
+					if (calculation.parameters) {
+						Object.keys(calculation.parameters).forEach(key => {
+							const input = document.getElementById(`param_${key}`);
+							if (input) {
+								input.value = calculation.parameters[key];
+							}
+						});
+					}
+				}, 100);
+			}
+
+			// Загружаем операции
+			this.operations = calculation.operations || [];
+			this.renderOperations();
+
+			// Сохраняем ID для обновления
+			this.currentCalculationId = calculation.id;
+
+			// Если есть результат, показываем его
+			if (calculation.result) {
+				this.showResults(calculation.result);
+			}
+		} catch (error) {
+			alert('Ошибка загрузки расчета: ' + error.message);
+		}
+	},
+
 	addOperation() {
 		// Открываем диалог выбора операции
 		OperationsDialog.open().then(operation => {
@@ -177,6 +243,16 @@ const CalculatorPage = {
 				operations: operations
 			});
 
+			// Сохраняем текущие данные для сохранения
+			this.currentResult = {
+				product_name: productName,
+				material_id: materialId,
+				product_type_id: productTypeId,
+				parameters: parameters,
+				operations: operations,
+				result: result
+			};
+
 			this.showResults(result);
 		} catch (error) {
 			alert('Ошибка расчета: ' + error.message);
@@ -213,7 +289,320 @@ const CalculatorPage = {
 		html += '<hr style="margin: 15px 0;">';
 		html += '<div class="result-row"><span class="result-label">Общая себестоимость:</span><span class="result-value">' + result.total_cost_without_packaging.toFixed(2) + ' руб</span></div>';
 
+		// Кнопки действий
+		html += '<div style="margin-top: 20px; display: flex; gap: 10px; flex-wrap: wrap;">';
+		html += '<button type="button" class="btn btn-primary" onclick="CalculatorPage.saveCalculation()">Сохранить</button>';
+		const exportId = this.currentCalculationId ? this.currentCalculationId : '';
+		html += '<button type="button" class="btn btn-secondary" onclick="CalculatorPage.exportCalculation(' + (exportId ? exportId : '') + ')">Экспорт PDF</button>';
+		html += '<button type="button" class="btn btn-secondary" onclick="CalculatorPage.printCalculation(' + (exportId ? exportId : '') + ')">Печать</button>';
+		html += '</div>';
+
 		container.innerHTML = html;
+	},
+
+	async saveCalculation() {
+		if (!this.currentResult) {
+			alert('Сначала выполните расчет');
+			return;
+		}
+
+		const productName = document.getElementById('productName').value.trim();
+		if (!productName) {
+			alert('Название изделия обязательно для заполнения');
+			document.getElementById('productName').focus();
+			return;
+		}
+
+		try {
+			if (this.currentCalculationId) {
+				// Обновляем существующий расчет
+				await API.updateCalculation({
+					id: this.currentCalculationId,
+					...this.currentResult
+				});
+				alert('Расчет успешно обновлен');
+			} else {
+				// Создаем новый расчет
+				const response = await API.saveCalculation(this.currentResult);
+				this.currentCalculationId = response.id;
+				alert('Расчет успешно сохранен');
+				// Обновляем кнопки в результатах
+				this.showResults(this.currentResult.result);
+			}
+		} catch (error) {
+			alert('Ошибка сохранения: ' + error.message);
+		}
+	},
+
+	exportCalculation(calculationId = null) {
+		// Если передан ID, используем серверный экспорт
+		if (calculationId) {
+			API.exportCalculation(calculationId);
+			return;
+		}
+
+		// Иначе используем клиентский экспорт для несохраненного расчета
+		if (!this.currentResult) {
+			alert('Сначала выполните расчет');
+			return;
+		}
+
+		const html = this.generateExportHTML(this.currentResult);
+		const exportWindow = window.open('', '_blank');
+		exportWindow.document.write(html);
+		exportWindow.document.close();
+	},
+
+	printCalculation(calculationId = null) {
+		// Если передан ID, используем серверный экспорт
+		if (calculationId) {
+			const API_BASE = window.API_BASE || '/backend/api';
+			const printWindow = window.open(`${API_BASE}/export.php?id=${calculationId}`, '_blank');
+			printWindow.onload = () => {
+				printWindow.print();
+			};
+			return;
+		}
+
+		// Иначе используем клиентскую печать для несохраненного расчета
+		if (!this.currentResult) {
+			alert('Сначала выполните расчет');
+			return;
+		}
+
+		const html = this.generateExportHTML(this.currentResult);
+		const printWindow = window.open('', '_blank');
+		printWindow.document.write(html);
+		printWindow.document.close();
+		printWindow.onload = () => {
+			printWindow.print();
+		};
+	},
+
+	generateExportHTML(data) {
+		const result = data.result;
+		const productName = data.product_name || '';
+		const materialName = result.material_name || '';
+		const productTypeName = result.product_type_name || '';
+		const createdAt = new Date().toLocaleString('ru-RU');
+		const parameters = data.parameters || {};
+		const operations = this.operations || [];
+
+		let html = `<!DOCTYPE html>
+<html lang="ru">
+<head>
+	<meta charset="UTF-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1.0">
+	<title>Калькуляция: ${this.escapeHtml(productName)}</title>
+	<style>
+		body {
+			font-family: Arial, sans-serif;
+			margin: 20px;
+			color: #333;
+		}
+		.header {
+			border-bottom: 2px solid #333;
+			padding-bottom: 10px;
+			margin-bottom: 20px;
+		}
+		.header h1 {
+			margin: 0;
+			font-size: 24px;
+		}
+		.info-table {
+			width: 100%;
+			border-collapse: collapse;
+			margin-bottom: 20px;
+		}
+		.info-table td {
+			padding: 8px;
+			border: 1px solid #ddd;
+		}
+		.info-table td:first-child {
+			background-color: #f5f5f5;
+			font-weight: bold;
+			width: 200px;
+		}
+		.section {
+			margin-top: 30px;
+		}
+		.section-title {
+			font-size: 18px;
+			font-weight: bold;
+			margin-bottom: 10px;
+			border-bottom: 1px solid #333;
+			padding-bottom: 5px;
+		}
+		.results-table {
+			width: 100%;
+			border-collapse: collapse;
+			margin-top: 10px;
+		}
+		.results-table th,
+		.results-table td {
+			padding: 8px;
+			border: 1px solid #ddd;
+			text-align: left;
+		}
+		.results-table th {
+			background-color: #f5f5f5;
+			font-weight: bold;
+		}
+		.total {
+			font-size: 18px;
+			font-weight: bold;
+			color: #000;
+			margin-top: 20px;
+			padding-top: 10px;
+			border-top: 2px solid #333;
+		}
+		@media print {
+			body { margin: 0; }
+			.no-print { display: none; }
+		}
+	</style>
+</head>
+<body>
+	<div class="header">
+		<h1>Калькуляция себестоимости</h1>
+		<p>Дата создания: ${createdAt}</p>
+	</div>
+
+	<table class="info-table">
+		<tr>
+			<td>Название изделия</td>
+			<td>${this.escapeHtml(productName)}</td>
+		</tr>
+		<tr>
+			<td>Материал</td>
+			<td>${this.escapeHtml(materialName)}</td>
+		</tr>
+		<tr>
+			<td>Тип изделия</td>
+			<td>${this.escapeHtml(productTypeName)}</td>
+		</tr>
+	</table>`;
+
+		// Параметры изделия
+		if (Object.keys(parameters).length > 0) {
+			html += `<div class="section">
+			<div class="section-title">Параметры изделия</div>
+			<table class="results-table">
+				<thead>
+					<tr>
+						<th>Параметр</th>
+						<th>Значение</th>
+					</tr>
+				</thead>
+				<tbody>`;
+			for (const [key, value] of Object.entries(parameters)) {
+				html += `<tr>
+					<td>${this.escapeHtml(key)}</td>
+					<td>${this.escapeHtml(String(value))}</td>
+				</tr>`;
+			}
+			html += `</tbody></table></div>`;
+		}
+
+		// Результаты расчета
+		if (result) {
+			html += `<div class="section">
+			<div class="section-title">Результаты расчета</div>
+			<table class="results-table">
+				<tr>
+					<td>Объем заготовки</td>
+					<td>${this.formatNumber(result.workpiece_volume || 0, 2)} мм³</td>
+				</tr>
+				<tr>
+					<td>Объем изделия</td>
+					<td>${this.formatNumber(result.product_volume || 0, 2)} мм³</td>
+				</tr>
+				<tr>
+					<td>Объем отходов</td>
+					<td>${this.formatNumber(result.waste_volume || 0, 2)} мм³</td>
+				</tr>
+				<tr>
+					<td>Масса заготовки</td>
+					<td>${this.formatNumber(result.workpiece_mass || 0, 4)} кг</td>
+				</tr>
+				<tr>
+					<td>Масса изделия</td>
+					<td>${this.formatNumber(result.product_mass || 0, 4)} кг</td>
+				</tr>
+				<tr>
+					<td>Масса отходов</td>
+					<td>${this.formatNumber(result.waste_mass || 0, 4)} кг</td>
+				</tr>
+				<tr>
+					<td>Стоимость материала</td>
+					<td>${this.formatNumber(result.material_cost || 0, 2)} руб</td>
+				</tr>
+				<tr>
+					<td>Зарплата (операции)</td>
+					<td>${this.formatNumber(result.total_operations_cost || 0, 2)} руб</td>
+				</tr>`;
+
+			if (result.coefficients && result.coefficients.length > 0) {
+				html += `<tr>
+					<td colspan="2"><strong>Коэффициенты:</strong></td>
+				</tr>`;
+				result.coefficients.forEach(coef => {
+					html += `<tr>
+						<td>${this.escapeHtml(coef.name)} (${coef.value}%)</td>
+						<td>${this.formatNumber(coef.amount || 0, 2)} руб</td>
+					</tr>`;
+				});
+				html += `<tr>
+					<td>Итого коэффициенты</td>
+					<td>${this.formatNumber(result.coefficients_cost || 0, 2)} руб</td>
+				</tr>`;
+			}
+
+			html += `</table>
+			<div class="total">
+				Общая себестоимость: ${this.formatNumber(result.total_cost_without_packaging || 0, 2)} руб
+			</div>
+			</div>`;
+		}
+
+		// Операции
+		if (operations.length > 0) {
+			html += `<div class="section">
+			<div class="section-title">Операции</div>
+			<table class="results-table">
+				<thead>
+					<tr>
+						<th>Номер</th>
+						<th>Описание</th>
+						<th>Коэф. сложности</th>
+						<th>Стоимость</th>
+					</tr>
+				</thead>
+				<tbody>`;
+			operations.forEach(op => {
+				html += `<tr>
+					<td>${this.escapeHtml(op.operation_number || '')}</td>
+					<td>${this.escapeHtml(op.operation_description || '')}</td>
+					<td>${this.formatNumber(op.complexity_coefficient || 1, 2)}</td>
+					<td>${this.formatNumber(op.total_cost || 0, 2)} руб</td>
+				</tr>`;
+			});
+			html += `</tbody></table></div>`;
+		}
+
+		html += `</body></html>`;
+
+		return html;
+	},
+
+	escapeHtml(text) {
+		const div = document.createElement('div');
+		div.textContent = text;
+		return div.innerHTML;
+	},
+
+	formatNumber(num, decimals) {
+		return parseFloat(num).toFixed(decimals).replace(/\B(?=(\d{3})+(?!\d))/g, ' ');
 	}
 };
 

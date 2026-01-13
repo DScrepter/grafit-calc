@@ -4,6 +4,7 @@
 
 // Единый базовый путь к API
 const API_BASE = '/backend/api';
+window.API_BASE = API_BASE;
 
 // Класс для логирования ошибок
 class ErrorLogger {
@@ -243,6 +244,59 @@ class API {
 		return this.request('/calculate.php', {
 			method: 'POST',
 			body: data,
+		});
+	}
+
+	// Сохраненные расчеты
+	static async getCalculations(page = 1, limit = 50) {
+		return this.request(`/calculations.php?page=${page}&limit=${limit}`);
+	}
+
+	static async getCalculation(id) {
+		return this.request(`/calculations.php?id=${id}`);
+	}
+
+	static async saveCalculation(data) {
+		return this.request('/calculations.php', {
+			method: 'POST',
+			body: data,
+		});
+	}
+
+	static async updateCalculation(data) {
+		return this.request('/calculations.php', {
+			method: 'PUT',
+			body: data,
+		});
+	}
+
+	static async deleteCalculation(id) {
+		return this.request(`/calculations.php?id=${id}`, {
+			method: 'DELETE',
+		});
+	}
+
+	static async exportCalculation(id) {
+		// Открываем экспорт в новом окне
+		window.open(`${API_BASE}/export.php?id=${id}`, '_blank');
+	}
+
+	// Обновления базы данных (только для супер-администраторов)
+	static async getMigrationsStatus() {
+		return this.request('/migrations.php');
+	}
+
+	static async applyMigrations() {
+		return this.request('/migrations.php', {
+			method: 'POST',
+			body: {},
+		});
+	}
+
+	static async applyMigration(migrationName) {
+		return this.request('/migrations.php', {
+			method: 'POST',
+			body: { migration: migrationName },
 		});
 	}
 

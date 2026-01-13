@@ -41,7 +41,13 @@ require __DIR__ . '/templates/header.php';
 	<div id="operationDialog" class="modal" style="display: none;">
 		<div class="modal-content">
 			<div class="modal-header">
-				<h3>Выбор операции</h3>
+				<div class="modal-header-left">
+					<h3>Выбор операции</h3>
+					<div class="complexity-coefficient-sticky">
+						<label for="complexityCoefficient">Коэффициент сложности:</label>
+						<input type="number" id="complexityCoefficient" min="0.1" max="10" step="0.01" value="1.0">
+					</div>
+				</div>
 				<button class="modal-close" onclick="closeOperationDialog()">&times;</button>
 			</div>
 			<div class="modal-body">
@@ -59,10 +65,6 @@ require __DIR__ . '/templates/header.php';
 					</thead>
 					<tbody></tbody>
 				</table>
-				<div class="form-group">
-					<label for="complexityCoefficient">Коэффициент сложности:</label>
-					<input type="number" id="complexityCoefficient" min="0.1" max="10" step="0.01" value="1.0">
-				</div>
 			</div>
 			<div class="modal-footer">
 				<button class="btn btn-primary" onclick="confirmOperationSelection()">ОК</button>

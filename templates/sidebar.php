@@ -30,6 +30,7 @@
 					<span class="nav-group-title">Калькуляторы</span>
 					<ul class="nav-items">
 						<li data-page="calculator" <?php echo ($sidebar_type === 'calculator') ? 'class="active"' : ''; ?>><a href="/calculator">Основной калькулятор</a></li>
+						<li data-page="products"><a href="/calculator?page=products">Изделия</a></li>
 					</ul>
 				</li>
 			<?php endif; ?>
@@ -38,6 +39,9 @@
 					<span class="nav-group-title">Администрирование</span>
 					<ul class="nav-items">
 						<li data-page="users"><a href="/calculator?page=users">Пользователи</a></li>
+						<?php if ($auth->isSuperAdmin()): ?>
+							<li data-page="migrations"><a href="/calculator?page=migrations">Обновления БД</a></li>
+						<?php endif; ?>
 					</ul>
 				</li>
 			<?php endif; ?>

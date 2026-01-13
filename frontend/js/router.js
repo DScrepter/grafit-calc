@@ -89,6 +89,15 @@ class Router {
 			return;
 		}
 
+		// Проверка прав супер-администратора
+		if (this.requiresSuperAdmin(page) && this.currentUser?.role !== 'super_admin') {
+			const content = document.getElementById('workspaceContent');
+			if (content) {
+				content.innerHTML = '<div class="error-message">Доступ разрешен только супер-администраторам.</div>';
+			}
+			return;
+		}
+
 		// Загружаем страницу
 		await this.loadPage(page);
 	}
@@ -109,6 +118,10 @@ class Router {
 
 	requiresAccess(page) {
 		return ['calculator', 'materials', 'operations', 'units', 'product_types', 'coefficients'].includes(page);
+	}
+
+	requiresSuperAdmin(page) {
+		return page === 'migrations';
 	}
 
 	async checkAuth() {
@@ -179,6 +192,14 @@ class Router {
 			if (pageId === 'users') {
 				if (!this.currentUser || (this.currentUser.role !== 'super_admin' && this.currentUser.role !== 'admin')) {
 					content.innerHTML = '<div class="error-message">У вас нет доступа к управлению пользователями.</div>';
+					return;
+				}
+			}
+
+			// Проверка прав супер-администратора для страницы migrations
+			if (pageId === 'migrations') {
+				if (!this.currentUser || this.currentUser.role !== 'super_admin') {
+					content.innerHTML = '<div class="error-message">Доступ разрешен только супер-администраторам.</div>';
 					return;
 				}
 			}

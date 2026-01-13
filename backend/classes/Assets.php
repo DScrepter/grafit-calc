@@ -114,6 +114,8 @@ class Assets {
 		self::enqueue_script('units', 'frontend/js/units.js', [], '1.0', true);
 		self::enqueue_script('product-types', 'frontend/js/product_types.js', [], '1.0', true);
 		self::enqueue_script('coefficients', 'frontend/js/coefficients.js', [], '1.0', true);
+		self::enqueue_script('products', 'frontend/js/products.js', [], '1.0', true);
+		self::enqueue_script('migrations', 'frontend/js/migrations.js', [], '1.0', true);
 		self::enqueue_script('users', 'frontend/js/users.js', [], '1.0', true);
 		self::enqueue_script('login', 'frontend/js/login.js', [], '1.0', true);
 		self::enqueue_script('app', 'frontend/js/app.js', ['router'], '1.0', true);
