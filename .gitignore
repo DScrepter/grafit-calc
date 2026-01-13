@@ -1,0 +1,15 @@
+# Logs
+logs/
+*.log
+
+# IDE
+.idea/
+.vscode/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Configuration files with sensitive data
+config/config.php
+backend/config/config.php

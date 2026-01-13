@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html lang="ru">
+
+<head>
+	<meta charset="UTF-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1.0">
+	<title>Калькулятор себестоимости изделий графитового производства</title>
+	<link rel="stylesheet" href="css/style.css">
+</head>
+
+<body>
+	<div class="app-container">
+		<!-- Навигация -->
+		<nav class="sidebar">
+			<div class="sidebar-header">
+				<h2>Навигация</h2>
+			</div>
+			<ul class="nav-tree" id="navTree">
+				<li class="nav-group" id="referencesGroup" style="display: none;">
+					<span class="nav-group-title">Справочники</span>
+					<ul class="nav-items">
+						<li data-page="materials">Материалы</li>
+						<li data-page="units">Единицы измерения</li>
+						<li data-page="operations">Операции</li>
+						<li data-page="product_types">Типы изделий</li>
+						<li data-page="coefficients">Коэффициенты</li>
+					</ul>
+				</li>
+				<li class="nav-group" id="calculatorsGroup" style="display: none;">
+					<span class="nav-group-title">Калькуляторы</span>
+					<ul class="nav-items">
+						<li data-page="calculator" class="active">Основной калькулятор</li>
+					</ul>
+				</li>
+				<li class="nav-group" id="adminGroup" style="display: none;">
+					<span class="nav-group-title">Администрирование</span>
+					<ul class="nav-items">
+						<li data-page="users">Пользователи</li>
+					</ul>
+				</li>
+			</ul>
+			<div class="sidebar-footer">
+				<div class="user-info">
+					<span id="username"></span>
+					<button id="logoutBtn" class="btn btn-small">Выход</button>
+				</div>
+			</div>
+		</nav>
+
+		<!-- Рабочая область -->
+		<main class="workspace">
+			<div id="workspaceContent">
+				<!-- Контент будет загружаться динамически -->
+			</div>
+		</main>
+	</div>
+
+	<!-- Модальное окно выбора операции -->
+	<div id="operationDialog" class="modal" style="display: none;">
+		<div class="modal-content">
+			<div class="modal-header">
+				<h3>Выбор операции</h3>
+				<button class="modal-close" onclick="closeOperationDialog()">&times;</button>
+			</div>
+			<div class="modal-body">
+				<div class="search-box">
+					<input type="text" id="operationSearch" placeholder="Поиск по номеру или описанию...">
+				</div>
+				<table class="data-table" id="operationsTable">
+					<thead>
+						<tr>
+							<th data-sort="number">Номер</th>
+							<th data-sort="description">Описание</th>
+							<th data-sort="unit">Единица</th>
+							<th data-sort="cost">Стоимость (руб/ед)</th>
+						</tr>
+					</thead>
+					<tbody></tbody>
+				</table>
+				<div class="form-group">
+					<label for="complexityCoefficient">Коэффициент сложности:</label>
+					<input type="number" id="complexityCoefficient" min="0.1" max="10" step="0.01" value="1.0">
+				</div>
+			</div>
+			<div class="modal-footer">
+				<button class="btn btn-primary" onclick="confirmOperationSelection()">ОК</button>
+				<button class="btn btn-secondary" onclick="closeOperationDialog()">Отмена</button>
+			</div>
+		</div>
+	</div>
+
+	<script src="js/api.js"></script>
+	<script src="js/navigation.js"></script>
+	<script src="js/calculator.js"></script>
+	<script src="js/materials.js"></script>
+	<script src="js/operations.js"></script>
+	<script src="js/units.js"></script>
+	<script src="js/product_types.js"></script>
+	<script src="js/coefficients.js"></script>
+	<script src="js/users.js"></script>
+	<script src="js/app.js"></script>
+</body>
+
+</html>

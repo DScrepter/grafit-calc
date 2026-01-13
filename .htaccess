@@ -1,0 +1,68 @@
+# Apache конфигурация для веб-приложения
+
+# Включаем mod_rewrite
+RewriteEngine On
+
+# Базовый путь (если приложение в поддиректории)
+# RewriteBase /cost-calc/
+
+# Внешний редирект с .php на URL без расширения (исключаем API)
+RewriteCond %{THE_REQUEST} \s/+(.+)\.php[\s?] [NC]
+RewriteCond %{REQUEST_URI} !^/backend/api/
+RewriteRule ^ /%1 [R=301,L]
+
+# Внутренний rewrite для URL без расширения на .php файлы
+# Главная страница
+RewriteCond %{REQUEST_FILENAME} !-f
+RewriteCond %{REQUEST_FILENAME} !-d
+RewriteRule ^$ index.php [L]
+
+# Страница входа
+RewriteCond %{REQUEST_FILENAME} !-f
+RewriteCond %{REQUEST_FILENAME} !-d
+RewriteRule ^login$ login.php [L]
+
+# Страница калькулятора
+RewriteCond %{REQUEST_FILENAME} !-f
+RewriteCond %{REQUEST_FILENAME} !-d
+RewriteRule ^calculator$ calculator.php [L]
+
+# Страница профиля
+RewriteCond %{REQUEST_FILENAME} !-f
+RewriteCond %{REQUEST_FILENAME} !-d
+RewriteRule ^profile$ profile.php [L]
+
+# Справочники - редирект на calculator с параметром page (SPA)
+RewriteCond %{REQUEST_FILENAME} !-f
+RewriteCond %{REQUEST_FILENAME} !-d
+RewriteRule ^reference/([^/]+)$ /calculator?page=$1 [R=301,L]
+
+# Обработка статических файлов и API
+RewriteCond %{REQUEST_FILENAME} -f [OR]
+RewriteCond %{REQUEST_FILENAME} -d [OR]
+RewriteCond %{REQUEST_URI} ^/backend/api/
+RewriteRule . - [L]
+
+# Защита конфигурационных файлов
+<FilesMatch "^(config\.php|\.htaccess)$">
+	Order allow,deny
+	Deny from all
+</FilesMatch>
+
+# Защита директорий
+Options -Indexes
+
+# Кэширование статических файлов
+<IfModule mod_expires.c>
+	ExpiresActive On
+	ExpiresByType text/css "access plus 1 month"
+	ExpiresByType application/javascript "access plus 1 month"
+	ExpiresByType image/png "access plus 1 year"
+	ExpiresByType image/jpg "access plus 1 year"
+	ExpiresByType image/jpeg "access plus 1 year"
+</IfModule>
+
+# Сжатие
+<IfModule mod_deflate.c>
+	AddOutputFilterByType DEFLATE text/html text/plain text/xml text/css text/javascript application/javascript
+</IfModule>

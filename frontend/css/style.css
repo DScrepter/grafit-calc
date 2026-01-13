@@ -1,0 +1,485 @@
+/* Общие стили */
+* {
+	margin: 0;
+	padding: 0;
+	box-sizing: border-box;
+}
+
+body {
+	font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+	font-size: 14px;
+	color: #333;
+	background-color: #f5f5f5;
+}
+
+/* Страница входа */
+.login-page {
+	display: flex;
+	justify-content: center;
+	align-items: center;
+	min-height: 100vh;
+	background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+}
+
+.login-container {
+	width: 100%;
+	max-width: 400px;
+	padding: 20px;
+}
+
+.login-box {
+	background: white;
+	border-radius: 8px;
+	padding: 40px;
+	box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
+}
+
+.login-box h1 {
+	margin-bottom: 30px;
+	text-align: center;
+	color: #333;
+}
+
+.form-group {
+	margin-bottom: 20px;
+}
+
+.form-group label {
+	display: block;
+	margin-bottom: 5px;
+	font-weight: 500;
+	color: #555;
+}
+
+.form-group input {
+	width: 100%;
+	padding: 10px;
+	border: 1px solid #ddd;
+	border-radius: 4px;
+	font-size: 14px;
+}
+
+.form-group input:focus {
+	outline: none;
+	border-color: #667eea;
+}
+
+.form-footer {
+	margin-top: 15px;
+	text-align: center;
+}
+
+.btn-link {
+	background: none;
+	border: none;
+	color: #667eea;
+	cursor: pointer;
+	text-decoration: underline;
+	font-size: 14px;
+}
+
+.error-message {
+	background-color: #fee;
+	color: #c33;
+	padding: 10px;
+	border-radius: 4px;
+	margin-top: 15px;
+}
+
+/* Основное приложение */
+.app-container {
+	display: flex;
+	height: 100vh;
+	overflow: hidden;
+}
+
+/* Боковая панель навигации */
+.sidebar {
+	width: 250px;
+	background-color: #fff;
+	border-right: 1px solid #ddd;
+	display: flex;
+	flex-direction: column;
+	overflow-y: auto;
+}
+
+.sidebar-header {
+	padding: 20px;
+	border-bottom: 1px solid #eee;
+}
+
+.sidebar-header h2 {
+	font-size: 18px;
+	color: #333;
+}
+
+.nav-tree {
+	list-style: none;
+	padding: 10px 0;
+	flex: 1;
+}
+
+.nav-group {
+	margin-bottom: 10px;
+}
+
+.nav-group-title {
+	display: block;
+	padding: 8px 20px;
+	font-weight: 600;
+	color: #666;
+	font-size: 12px;
+	text-transform: uppercase;
+}
+
+.nav-items {
+	list-style: none;
+}
+
+.nav-items li {
+	padding: 10px 20px 10px 35px;
+	cursor: pointer;
+	color: #333;
+	transition: background-color 0.2s;
+}
+
+.nav-items li:hover {
+	background-color: #f0f0f0;
+}
+
+.nav-items li.active {
+	background-color: #e3f2fd;
+	color: #1976d2;
+	font-weight: 500;
+}
+
+.sidebar-footer {
+	padding: 15px;
+	border-top: 1px solid #eee;
+}
+
+.user-info {
+	display: flex;
+	justify-content: space-between;
+	align-items: center;
+}
+
+/* Рабочая область */
+.workspace {
+	flex: 1;
+	overflow-y: auto;
+	background-color: #f5f5f5;
+	padding: 20px;
+}
+
+.page-content {
+	max-width: 1200px;
+	margin: 0 auto;
+}
+
+.page-title {
+	font-size: 24px;
+	margin-bottom: 20px;
+	color: #333;
+}
+
+/* Кнопки */
+.btn {
+	padding: 10px 20px;
+	border: none;
+	border-radius: 4px;
+	cursor: pointer;
+	font-size: 14px;
+	transition: background-color 0.2s;
+}
+
+.btn-primary {
+	background-color: #1976d2;
+	color: white;
+}
+
+.btn-primary:hover {
+	background-color: #1565c0;
+}
+
+.btn-secondary {
+	background-color: #757575;
+	color: white;
+}
+
+.btn-secondary:hover {
+	background-color: #616161;
+}
+
+.btn-small {
+	padding: 5px 10px;
+	font-size: 12px;
+}
+
+.btn-danger {
+	background-color: #d32f2f;
+	color: white;
+}
+
+.btn-danger:hover {
+	background-color: #c62828;
+}
+
+/* Таблицы */
+.data-table {
+	width: 100%;
+	border-collapse: collapse;
+	background-color: white;
+	margin-bottom: 20px;
+}
+
+.data-table th {
+	background-color: #f5f5f5;
+	padding: 12px;
+	text-align: left;
+	font-weight: 600;
+	border-bottom: 2px solid #ddd;
+	cursor: pointer;
+	user-select: none;
+}
+
+.data-table th:hover {
+	background-color: #eeeeee;
+}
+
+.data-table th.sorted-asc::after {
+	content: ' ▲';
+	font-size: 10px;
+}
+
+.data-table th.sorted-desc::after {
+	content: ' ▼';
+	font-size: 10px;
+}
+
+.data-table td {
+	padding: 10px 12px;
+	border-bottom: 1px solid #eee;
+}
+
+.data-table tbody tr:hover {
+	background-color: #f9f9f9;
+}
+
+.data-table tbody tr.selected {
+	background-color: #e3f2fd;
+}
+
+/* Формы */
+.form-group {
+	margin-bottom: 15px;
+}
+
+.form-group label {
+	display: block;
+	margin-bottom: 5px;
+	font-weight: 500;
+	color: #555;
+}
+
+.form-group input,
+.form-group select {
+	width: 100%;
+	padding: 8px;
+	border: 1px solid #ddd;
+	border-radius: 4px;
+	font-size: 14px;
+}
+
+.form-group input:focus,
+.form-group select:focus {
+	outline: none;
+	border-color: #1976d2;
+}
+
+.form-row {
+	display: grid;
+	grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+	gap: 15px;
+}
+
+/* Группы полей */
+.field-group {
+	background-color: white;
+	border: 1px solid #ddd;
+	border-radius: 4px;
+	padding: 20px;
+	margin-bottom: 20px;
+}
+
+.field-group-title {
+	font-size: 16px;
+	font-weight: 600;
+	margin-bottom: 15px;
+	color: #333;
+}
+
+/* Калькулятор */
+.calculator-form {
+	background-color: white;
+	border: 1px solid #ddd;
+	border-radius: 4px;
+	padding: 20px;
+}
+
+.calculator-results {
+	background-color: #f9f9f9;
+	border: 1px solid #ddd;
+	border-radius: 4px;
+	padding: 20px;
+	margin-top: 20px;
+}
+
+.result-row {
+	display: flex;
+	justify-content: space-between;
+	padding: 8px 0;
+	border-bottom: 1px solid #eee;
+}
+
+.result-row:last-child {
+	border-bottom: none;
+	font-weight: 600;
+	font-size: 16px;
+	color: #1976d2;
+}
+
+.result-label {
+	color: #666;
+}
+
+.result-value {
+	font-weight: 500;
+	color: #333;
+}
+
+/* Модальные окна */
+.modal {
+	position: fixed;
+	top: 0;
+	left: 0;
+	width: 100%;
+	height: 100%;
+	background-color: rgba(0, 0, 0, 0.5);
+	display: flex;
+	justify-content: center;
+	align-items: center;
+	z-index: 1000;
+}
+
+.modal-content {
+	background-color: white;
+	border-radius: 8px;
+	width: 90%;
+	max-width: 800px;
+	max-height: 90vh;
+	display: flex;
+	flex-direction: column;
+	box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3);
+}
+
+.modal-header {
+	padding: 20px;
+	border-bottom: 1px solid #eee;
+	display: flex;
+	justify-content: space-between;
+	align-items: center;
+}
+
+.modal-header h3 {
+	margin: 0;
+}
+
+.modal-close {
+	background: none;
+	border: none;
+	font-size: 24px;
+	cursor: pointer;
+	color: #999;
+}
+
+.modal-close:hover {
+	color: #333;
+}
+
+.modal-body {
+	padding: 20px;
+	overflow-y: auto;
+	flex: 1;
+}
+
+.modal-footer {
+	padding: 20px;
+	border-top: 1px solid #eee;
+	display: flex;
+	justify-content: flex-end;
+	gap: 10px;
+}
+
+.search-box {
+	margin-bottom: 15px;
+}
+
+.search-box input {
+	width: 100%;
+	padding: 10px;
+	border: 1px solid #ddd;
+	border-radius: 4px;
+}
+
+/* Операции в калькуляторе */
+.operations-list {
+	margin-top: 15px;
+}
+
+.operation-item {
+	display: flex;
+	justify-content: space-between;
+	align-items: center;
+	padding: 10px;
+	background-color: #f9f9f9;
+	border: 1px solid #ddd;
+	border-radius: 4px;
+	margin-bottom: 10px;
+}
+
+.operation-info {
+	flex: 1;
+}
+
+.operation-number {
+	font-weight: 600;
+	color: #1976d2;
+}
+
+.operation-description {
+	color: #666;
+	font-size: 13px;
+}
+
+.operation-cost {
+	font-weight: 500;
+	margin-left: 15px;
+}
+
+/* Утилиты */
+.text-right {
+	text-align: right;
+}
+
+.mt-20 {
+	margin-top: 20px;
+}
+
+.mb-20 {
+	margin-bottom: 20px;
+}
+
+.hidden {
+	display: none;
+}
