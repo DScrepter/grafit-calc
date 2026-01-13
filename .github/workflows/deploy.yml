@@ -15,16 +15,10 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
       
-      - name: Setup SSH
+      - name: Install sshpass
         run: |
-          mkdir -p ~/.ssh
-          chmod 700 ~/.ssh
-          # Если используется SSH ключ
-          if [ -n "${{ secrets.DEPLOY_SSH_KEY }}" ]; then
-            echo "${{ secrets.DEPLOY_SSH_KEY }}" > ~/.ssh/deploy_key
-            chmod 600 ~/.ssh/deploy_key
-            ssh-keyscan -H ${{ secrets.DEPLOY_HOST }} >> ~/.ssh/known_hosts 2>&1 || true
-          fi
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq sshpass
       
       - name: Deploy to server
         env:
@@ -33,68 +27,26 @@ jobs:
           DEPLOY_PATH: ${{ secrets.DEPLOY_PATH }}
           DEPLOY_PASSWORD: ${{ secrets.DEPLOY_PASSWORD }}
         run: |
-          # Устанавливаем sshpass если используется пароль
-          if [ -n "${DEPLOY_PASSWORD}" ]; then
-            sudo apt-get update -qq
-            sudo apt-get install -y -qq sshpass
-          fi
-          
           # Функция для SSH команды
           ssh_cmd() {
-            if [ -n "${DEPLOY_PASSWORD}" ]; then
-              sshpass -p "${DEPLOY_PASSWORD}" ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o LogLevel=ERROR ${DEPLOY_USER}@${DEPLOY_HOST} "$@"
-            elif [ -f ~/.ssh/deploy_key ]; then
-              ssh -i ~/.ssh/deploy_key -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o LogLevel=ERROR ${DEPLOY_USER}@${DEPLOY_HOST} "$@"
-            else
-              ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o LogLevel=ERROR ${DEPLOY_USER}@${DEPLOY_HOST} "$@"
-            fi
+            sshpass -p "${DEPLOY_PASSWORD}" ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o LogLevel=ERROR ${DEPLOY_USER}@${DEPLOY_HOST} "$@"
           }
           
           # Функция для rsync
           rsync_cmd() {
-            if [ -n "${DEPLOY_PASSWORD}" ]; then
-              sshpass -p "${DEPLOY_PASSWORD}" rsync -avz --delete \
-                --exclude '.git' \
-                --exclude '.github' \
-                --exclude 'node_modules' \
-                --exclude 'vendor' \
-                --exclude 'logs' \
-                --exclude '*.log' \
-                --exclude 'config/config.php' \
-                --exclude 'backend/config/config.php' \
-                --exclude '.DS_Store' \
-                --exclude 'Thumbs.db' \
-                -e "ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o LogLevel=ERROR" \
-                ./ ${DEPLOY_USER}@${DEPLOY_HOST}:${DEPLOY_PATH}/
-            elif [ -f ~/.ssh/deploy_key ]; then
-              rsync -avz --delete \
-                --exclude '.git' \
-                --exclude '.github' \
-                --exclude 'node_modules' \
-                --exclude 'vendor' \
-                --exclude 'logs' \
-                --exclude '*.log' \
-                --exclude 'config/config.php' \
-                --exclude 'backend/config/config.php' \
-                --exclude '.DS_Store' \
-                --exclude 'Thumbs.db' \
-                -e "ssh -i ~/.ssh/deploy_key -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o LogLevel=ERROR" \
-                ./ ${DEPLOY_USER}@${DEPLOY_HOST}:${DEPLOY_PATH}/
-            else
-              rsync -avz --delete \
-                --exclude '.git' \
-                --exclude '.github' \
-                --exclude 'node_modules' \
-                --exclude 'vendor' \
-                --exclude 'logs' \
-                --exclude '*.log' \
-                --exclude 'config/config.php' \
-                --exclude 'backend/config/config.php' \
-                --exclude '.DS_Store' \
-                --exclude 'Thumbs.db' \
-                -e "ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o LogLevel=ERROR" \
-                ./ ${DEPLOY_USER}@${DEPLOY_HOST}:${DEPLOY_PATH}/
-            fi
+            sshpass -p "${DEPLOY_PASSWORD}" rsync -avz --delete \
+              --exclude '.git' \
+              --exclude '.github' \
+              --exclude 'node_modules' \
+              --exclude 'vendor' \
+              --exclude 'logs' \
+              --exclude '*.log' \
+              --exclude 'config/config.php' \
+              --exclude 'backend/config/config.php' \
+              --exclude '.DS_Store' \
+              --exclude 'Thumbs.db' \
+              -e "ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o LogLevel=ERROR" \
+              ./ ${DEPLOY_USER}@${DEPLOY_HOST}:${DEPLOY_PATH}/
           }
           
           # Тест подключения
@@ -102,15 +54,25 @@ jobs:
           ssh_cmd "echo 'SSH connection successful'" || {
             echo "SSH connection failed. Please check:"
             echo "1. DEPLOY_HOST, DEPLOY_USER are correct"
-            echo "2. SSH key is properly added to server (if using key)"
-            echo "3. Password is correct (if using password)"
-            echo "4. Server allows SSH connections from GitHub Actions IPs"
+            echo "2. DEPLOY_PASSWORD is correct"
+            echo "3. Server allows SSH connections from GitHub Actions IPs"
             exit 1
           }
           
-          # Создаем директорию если не существует
-          echo "Creating directory if not exists..."
-          ssh_cmd "mkdir -p ${DEPLOY_PATH}"
+          # Проверяем существование директории и права доступа
+          echo "Checking deployment directory..."
+          ssh_cmd "test -d ${DEPLOY_PATH} && echo 'Directory exists' || (echo 'Directory does not exist: ${DEPLOY_PATH}' && exit 1)" || {
+            echo "ERROR: Directory ${DEPLOY_PATH} does not exist or is not accessible"
+            echo "Please create it manually on the server or check the DEPLOY_PATH secret"
+            exit 1
+          }
+          
+          # Проверяем права на запись
+          ssh_cmd "test -w ${DEPLOY_PATH} && echo 'Directory is writable' || (echo 'Directory is not writable: ${DEPLOY_PATH}' && exit 1)" || {
+            echo "ERROR: No write permission to ${DEPLOY_PATH}"
+            echo "Please check permissions on the server"
+            exit 1
+          }
           
           # Копируем файлы на сервер
           echo "Copying files to server..."
@@ -124,8 +86,3 @@ jobs:
             find . -name '*.sh' -exec chmod 755 {} \; && \
             ([ -d 'logs' ] && chmod 755 logs || true) && \
             echo 'Deployment completed successfully!'"
-      
-      - name: Cleanup
-        if: always()
-        run: |
-          rm -f ~/.ssh/deploy_key
