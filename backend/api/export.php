@@ -221,7 +221,8 @@ try {
 				'calculation' => $calculation,
 				'parameters' => $parameters,
 				'operations' => $operations,
-				'result' => $result
+				'result' => $result,
+				'parameter_labels' => $paramLabelMap
 			], JSON_UNESCAPED_UNICODE);
 			exit;
 		}

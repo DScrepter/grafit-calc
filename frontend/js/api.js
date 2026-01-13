@@ -505,14 +505,17 @@ class API {
 				credentials: 'include'
 			});
 
+			// Проверяем content-type ПЕРЕД чтением body
+			const contentType = response.headers.get('content-type') || '';
+			
 			if (!response.ok) {
+				// Для ошибок читаем текст только один раз
 				const errorText = await response.text();
 				throw new Error('Ошибка генерации PDF: ' + errorText);
 			}
 
 			// Если сервер вернул PDF, скачиваем его
-			const contentType = response.headers.get('content-type');
-			if (contentType && contentType.includes('application/pdf')) {
+			if (contentType.includes('application/pdf')) {
 				const blob = await response.blob();
 				const url = window.URL.createObjectURL(blob);
 				const a = document.createElement('a');
@@ -537,9 +540,17 @@ class API {
 				document.body.removeChild(a);
 				window.URL.revokeObjectURL(url);
 			} else {
-				// Если вернулся JSON с ошибкой
-				const errorData = await response.json();
-				throw new Error(errorData.error || 'Неожиданный формат ответа от сервера');
+				// Если вернулся JSON (например, когда TCPDF не найден и используется клиентская генерация)
+				try {
+					const jsonData = await response.json();
+					// Используем клиентскую генерацию PDF
+					// Формируем объект для generatePDFHTML
+					const html = this.generatePDFHTML(jsonData);
+					this.generatePDF(html, filename || jsonData.calculation?.product_name || 'calculation');
+				} catch (jsonError) {
+					// Если не удалось распарсить JSON, показываем ошибку
+					throw new Error('Неожиданный формат ответа от сервера');
+				}
 			}
 		} catch (error) {
 			console.error('Ошибка генерации PDF:', error);
