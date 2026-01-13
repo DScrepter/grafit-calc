@@ -22,38 +22,214 @@ try {
 	$db = Database::getInstance();
 	$userId = $auth->getUserId();
 	$id = $_GET['id'] ?? null;
+	$format = $_GET['format'] ?? 'html';
+	
+	// Проверяем, переданы ли данные расчета напрямую (для несохраненных расчетов)
+	$method = $_SERVER['REQUEST_METHOD'] ?? 'GET';
+	$calculation = null;
+	$parameters = [];
+	$operations = [];
+	$result = [];
+	$paramLabelMap = []; // Инициализируем маппинг лейблов
+	
+	if ($method === 'POST' && $format === 'pdf') {
+		// Получаем данные расчета из POST запроса
+		$input = file_get_contents('php://input');
+		$data = json_decode($input, true);
+		
+		if ($data && isset($data['calculation'])) {
+			$calculation = $data['calculation'];
+			$parameters = $data['parameters'] ?? [];
+			$operations = $data['operations'] ?? [];
+			$result = $data['result'] ?? [];
+			
+			// Если операции сохранены только с operation_id, получаем полную информацию из БД
+			if (!empty($operations) && isset($operations[0]['operation_id']) && !isset($operations[0]['operation_number'])) {
+				$operationIds = array_column($operations, 'operation_id');
+				if (!empty($operationIds)) {
+					$placeholders = implode(',', array_fill(0, count($operationIds), '?'));
+					$dbOperations = $db->fetchAll(
+						"SELECT id, number, description, cost FROM operations WHERE id IN ($placeholders)",
+						$operationIds
+					);
+					
+					// Создаем маппинг operation_id -> operation
+					$operationMap = [];
+					foreach ($dbOperations as $dbOp) {
+						$operationMap[$dbOp['id']] = $dbOp;
+					}
+					
+					// Объединяем данные из БД с сохраненными коэффициентами
+					$fullOperations = [];
+					foreach ($operations as $op) {
+						$operationId = $op['operation_id'];
+						$complexityCoefficient = $op['complexity_coefficient'] ?? 1.0;
+						
+						if (isset($operationMap[$operationId])) {
+							$dbOp = $operationMap[$operationId];
+							$operationCost = (float)$dbOp['cost'];
+							$totalCost = $operationCost * $complexityCoefficient;
+							
+							$fullOperations[] = [
+								'operation_id' => $operationId,
+								'operation_number' => $dbOp['number'],
+								'operation_description' => $dbOp['description'],
+								'operation_cost' => $operationCost,
+								'complexity_coefficient' => $complexityCoefficient,
+								'total_cost' => $totalCost
+							];
+						}
+					}
+					$operations = $fullOperations;
+				}
+			}
+			
+			// Получаем лейблы параметров для POST запроса (несохраненные расчеты)
+			if (isset($data['parameter_labels']) && is_array($data['parameter_labels'])) {
+				// Если лейблы переданы в данных
+				$paramLabelMap = $data['parameter_labels'];
+			} elseif (isset($data['calculation']['product_type_id'])) {
+				// Получаем лейблы из БД
+				$productTypeId = $data['calculation']['product_type_id'];
+				$paramLabels = $db->fetchAll(
+					"SELECT name, label FROM product_type_parameters WHERE product_type_id = ?",
+					[$productTypeId]
+				);
+				foreach ($paramLabels as $param) {
+					$paramLabelMap[$param['name']] = $param['label'];
+				}
+			}
+		} else {
+			http_response_code(400);
+			echo json_encode(['error' => 'Необходимо передать данные расчета'], JSON_UNESCAPED_UNICODE);
+			exit;
+		}
+	} else {
+		// Получаем расчет из базы данных
+		if (!$id) {
+			http_response_code(400);
+			echo json_encode(['error' => 'Необходимо указать ID расчета'], JSON_UNESCAPED_UNICODE);
+			exit;
+		}
 
-	if (!$id) {
-		http_response_code(400);
-		echo json_encode(['error' => 'Необходимо указать ID расчета'], JSON_UNESCAPED_UNICODE);
-		exit;
+		// Получаем расчет
+		$calculation = $db->fetchOne(
+			"SELECT c.*, m.mark as material_name, pt.name as product_type_name
+			FROM calculations c
+			LEFT JOIN materials m ON c.material_id = m.id
+			LEFT JOIN product_types pt ON c.product_type_id = pt.id
+			WHERE c.id = ? AND c.user_id = ?",
+			[$id, $userId]
+		);
+
+		if (!$calculation) {
+			http_response_code(404);
+			echo json_encode(['error' => 'Расчет не найден'], JSON_UNESCAPED_UNICODE);
+			exit;
+		}
+
+		// Декодируем JSON поля
+		$parameters = json_decode($calculation['parameters'], true) ?? [];
+		$operations = json_decode($calculation['operations'], true) ?? [];
+		$result = json_decode($calculation['result'], true) ?? [];
+		
+		// Если операции сохранены только с operation_id, получаем полную информацию из БД
+		if (!empty($operations) && isset($operations[0]['operation_id']) && !isset($operations[0]['operation_number'])) {
+			$operationIds = array_column($operations, 'operation_id');
+			if (!empty($operationIds)) {
+				$placeholders = implode(',', array_fill(0, count($operationIds), '?'));
+				$dbOperations = $db->fetchAll(
+					"SELECT id, number, description, cost FROM operations WHERE id IN ($placeholders)",
+					$operationIds
+				);
+				
+				// Создаем маппинг operation_id -> operation
+				$operationMap = [];
+				foreach ($dbOperations as $dbOp) {
+					$operationMap[$dbOp['id']] = $dbOp;
+				}
+				
+				// Объединяем данные из БД с сохраненными коэффициентами
+				$fullOperations = [];
+				foreach ($operations as $op) {
+					$operationId = $op['operation_id'];
+					$complexityCoefficient = $op['complexity_coefficient'] ?? 1.0;
+					
+					if (isset($operationMap[$operationId])) {
+						$dbOp = $operationMap[$operationId];
+						$operationCost = (float)$dbOp['cost'];
+						$totalCost = $operationCost * $complexityCoefficient;
+						
+						$fullOperations[] = [
+							'operation_id' => $operationId,
+							'operation_number' => $dbOp['number'],
+							'operation_description' => $dbOp['description'],
+							'operation_cost' => $operationCost,
+							'complexity_coefficient' => $complexityCoefficient,
+							'total_cost' => $totalCost
+						];
+					}
+				}
+				$operations = $fullOperations;
+			}
+		}
+		
+		// Получаем лейблы параметров из типа изделия
+		$productTypeId = $calculation['product_type_id'];
+		$paramLabels = $db->fetchAll(
+			"SELECT name, label FROM product_type_parameters WHERE product_type_id = ?",
+			[$productTypeId]
+		);
+		$paramLabelMap = [];
+		foreach ($paramLabels as $param) {
+			$paramLabelMap[$param['name']] = $param['label'];
+		}
 	}
 
-	// Получаем расчет
-	$calculation = $db->fetchOne(
-		"SELECT c.*, m.mark as material_name, pt.name as product_type_name
-		FROM calculations c
-		LEFT JOIN materials m ON c.material_id = m.id
-		LEFT JOIN product_types pt ON c.product_type_id = pt.id
-		WHERE c.id = ? AND c.user_id = ?",
-		[$id, $userId]
-	);
-
-	if (!$calculation) {
-		http_response_code(404);
-		echo json_encode(['error' => 'Расчет не найден'], JSON_UNESCAPED_UNICODE);
-		exit;
+	if ($format === 'pdf') {
+		// Генерируем PDF на сервере
+		try {
+			require_once __DIR__ . '/../classes/PDFGenerator.php';
+			$pdfGenerator = new PDFGenerator();
+			$pdfGenerator->generateCalculationPDF($calculation, $parameters, $operations, $result, $paramLabelMap);
+			
+			$filename = ($calculation['product_name'] ?? 'calculation') . '.pdf';
+			$filename = preg_replace('/[^a-zA-Zа-яА-Я0-9\s\-_\.]/u', '', $filename);
+			$filename = mb_convert_encoding($filename, 'UTF-8', 'UTF-8');
+			
+			if (!headers_sent()) {
+				header('Content-Type: application/pdf; charset=utf-8');
+				header('Content-Disposition: attachment; filename*=UTF-8\'\'' . rawurlencode($filename));
+			}
+			
+			$pdfGenerator->output($filename);
+			exit;
+		} catch (Exception $e) {
+			// Если TCPDF не установлен, возвращаем JSON для клиентской генерации
+			$logger = Logger::getInstance();
+			$logger->exception($e, [
+				'endpoint' => 'export.php',
+				'calculation_id' => $id ?? null,
+				'note' => 'TCPDF не установлен, используем клиентскую генерацию'
+			]);
+			
+			if (!headers_sent()) {
+				header('Content-Type: application/json; charset=utf-8');
+			}
+			echo json_encode([
+				'calculation' => $calculation,
+				'parameters' => $parameters,
+				'operations' => $operations,
+				'result' => $result
+			], JSON_UNESCAPED_UNICODE);
+			exit;
+		}
 	}
+	
+	// Формируем HTML для экспорта (для печати)
+	$html = generateExportHTML($calculation, $parameters, $operations, $result, $paramLabelMap ?? []);
 
-	// Декодируем JSON поля
-	$parameters = json_decode($calculation['parameters'], true) ?? [];
-	$operations = json_decode($calculation['operations'], true) ?? [];
-	$result = json_decode($calculation['result'], true) ?? [];
-
-	// Формируем HTML для экспорта
-	$html = generateExportHTML($calculation, $parameters, $operations, $result);
-
-	// Возвращаем HTML (можно конвертировать в PDF через jsPDF на клиенте)
+	// Возвращаем HTML
 	if (!headers_sent()) {
 		header('Content-Type: text/html; charset=utf-8');
 	}
@@ -77,7 +253,7 @@ try {
 	echo json_encode(['error' => 'Критическая ошибка сервера'], JSON_UNESCAPED_UNICODE);
 }
 
-function generateExportHTML($calculation, $parameters, $operations, $result) {
+function generateExportHTML($calculation, $parameters, $operations, $result, $paramLabelMap = []) {
 	$productName = htmlspecialchars($calculation['product_name']);
 	$materialName = htmlspecialchars($calculation['material_name'] ?? '');
 	$productTypeName = htmlspecialchars($calculation['product_type_name'] ?? '');
@@ -191,8 +367,10 @@ function generateExportHTML($calculation, $parameters, $operations, $result) {
 				</thead>
 				<tbody>';
 		foreach ($parameters as $key => $value) {
+			// Используем лейбл если есть, иначе имя параметра
+			$label = $paramLabelMap[$key] ?? $key;
 			$html .= '<tr>
-				<td>' . htmlspecialchars($key) . '</td>
+				<td>' . htmlspecialchars($label) . '</td>
 				<td>' . htmlspecialchars($value) . '</td>
 			</tr>';
 		}

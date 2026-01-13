@@ -4,6 +4,7 @@
 
 const CalculatorPage = {
 	currentResult: null,
+	currentProductType: null,
 	currentCalculationId: null,
 
 	async load(container) {
@@ -101,10 +102,12 @@ const CalculatorPage = {
 		const selectedOption = select.options[select.selectedIndex];
 		if (!selectedOption || !selectedOption.dataset.type) {
 			document.getElementById('parametersContainer').innerHTML = '';
+			this.currentProductType = null;
 			return;
 		}
 
 		const productType = JSON.parse(selectedOption.dataset.type);
+		this.currentProductType = productType; // Сохраняем тип изделия для экспорта
 		const container = document.getElementById('parametersContainer');
 		container.innerHTML = '';
 
@@ -220,7 +223,11 @@ const CalculatorPage = {
 
 		// Собираем параметры
 		const parameters = {};
-		const productType = JSON.parse(document.getElementById('productTypeSelect').options[document.getElementById('productTypeSelect').selectedIndex].dataset.type);
+		// Используем сохраненный тип изделия или получаем из DOM
+		const productType = this.currentProductType || JSON.parse(document.getElementById('productTypeSelect').options[document.getElementById('productTypeSelect').selectedIndex].dataset.type);
+		if (!this.currentProductType) {
+			this.currentProductType = productType; // Сохраняем если еще не сохранен
+		}
 		productType.parameters.forEach(param => {
 			const value = document.getElementById(`param_${param.name}`).value;
 			if (value) {
@@ -244,12 +251,13 @@ const CalculatorPage = {
 			});
 
 			// Сохраняем текущие данные для сохранения
+			// Используем полную информацию об операциях из результата расчета
 			this.currentResult = {
 				product_name: productName,
 				material_id: materialId,
 				product_type_id: productTypeId,
 				parameters: parameters,
-				operations: operations,
+				operations: result.operations || operations, // Используем полные операции из результата
 				result: result
 			};
 
@@ -334,23 +342,48 @@ const CalculatorPage = {
 		}
 	},
 
-	exportCalculation(calculationId = null) {
+	async exportCalculation(calculationId = null) {
 		// Если передан ID, используем серверный экспорт
 		if (calculationId) {
-			API.exportCalculation(calculationId);
+			await API.exportCalculation(calculationId);
 			return;
 		}
 
-		// Иначе используем клиентский экспорт для несохраненного расчета
+		// Иначе используем серверную генерацию для несохраненного расчета
 		if (!this.currentResult) {
 			alert('Сначала выполните расчет');
 			return;
 		}
 
-		const html = this.generateExportHTML(this.currentResult);
-		const exportWindow = window.open('', '_blank');
-		exportWindow.document.write(html);
-		exportWindow.document.close();
+		// Генерируем PDF из несохраненного расчета
+		// Преобразуем currentResult в формат данных для API
+		// Создаем маппинг name -> label для параметров
+		const parameterLabels = {};
+		if (this.currentProductType && this.currentProductType.parameters) {
+			this.currentProductType.parameters.forEach(param => {
+				parameterLabels[param.name] = param.label;
+			});
+		}
+		
+		const data = {
+			calculation: {
+				product_name: this.currentResult.product_name,
+				material_name: this.currentResult.result.material_name,
+				product_type_name: this.currentResult.result.product_type_name,
+				product_type_id: this.currentProductType ? this.currentProductType.id : null,
+				created_at: new Date().toISOString()
+			},
+			parameters: this.currentResult.parameters,
+			operations: this.operations,
+			result: this.currentResult.result,
+			parameter_labels: parameterLabels
+		};
+		await API.generatePDFFromData(data, this.currentResult.product_name || 'calculation');
+	},
+
+	generatePDF(html, filename) {
+		// Используем метод из API
+		API.generatePDF(html, filename);
 	},
 
 	printCalculation(calculationId = null) {

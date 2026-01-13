@@ -73,4 +73,8 @@ require __DIR__ . '/templates/header.php';
 		</div>
 	</div>
 
+	<!-- Библиотеки для генерации PDF -->
+	<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+	<script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+
 	<?php require __DIR__ . '/templates/footer.php'; ?>
