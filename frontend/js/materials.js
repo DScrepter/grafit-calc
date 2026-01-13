@@ -3,6 +3,9 @@
  */
 
 const MaterialsPage = {
+	materials: [],
+	currentSort: { column: null, direction: 'asc' },
+
 	async load(container) {
 		container.innerHTML = `
 			<div class="page-content">
@@ -11,10 +14,10 @@ const MaterialsPage = {
 				<table class="data-table" id="materialsTable">
 					<thead>
 						<tr>
-							<th>ID</th>
-							<th>Марка</th>
-							<th>Плотность (г/см³)</th>
-							<th>Цена (руб/кг)</th>
+							<th class="sortable" data-column="id">ID</th>
+							<th class="sortable" data-column="mark">Марка</th>
+							<th class="sortable" data-column="density">Плотность (г/см³)</th>
+							<th class="sortable" data-column="price">Цена (руб/кг)</th>
 							<th>Действия</th>
 						</tr>
 					</thead>
@@ -24,10 +27,92 @@ const MaterialsPage = {
 		`;
 
 		await this.loadMaterials();
+		this.setupSorting();
+	},
+
+	setupSorting() {
+		const headers = document.querySelectorAll('#materialsTable th.sortable');
+		headers.forEach(header => {
+			header.style.cursor = 'pointer';
+			header.addEventListener('click', () => {
+				const column = header.dataset.column;
+				this.sortBy(column);
+			});
+		});
+	},
+
+	sortBy(column) {
+		if (this.currentSort.column === column) {
+			this.currentSort.direction = this.currentSort.direction === 'asc' ? 'desc' : 'asc';
+		} else {
+			this.currentSort.column = column;
+			this.currentSort.direction = 'asc';
+		}
+
+		this.materials.sort((a, b) => {
+			let aVal = a[column];
+			let bVal = b[column];
+
+			if (column === 'id' || column === 'density' || column === 'price') {
+				aVal = parseFloat(aVal) || 0;
+				bVal = parseFloat(bVal) || 0;
+			} else {
+				aVal = (aVal || '').toString().toLowerCase();
+				bVal = (bVal || '').toString().toLowerCase();
+			}
+
+			if (aVal < bVal) return this.currentSort.direction === 'asc' ? -1 : 1;
+			if (aVal > bVal) return this.currentSort.direction === 'asc' ? 1 : -1;
+			return 0;
+		});
+
+		this.renderMaterials();
+		this.updateSortIndicators();
+	},
+
+	updateSortIndicators() {
+		const headers = document.querySelectorAll('#materialsTable th.sortable');
+		headers.forEach(header => {
+			const column = header.dataset.column;
+			header.classList.remove('sorted-asc', 'sorted-desc');
+			
+			if (this.currentSort.column === column) {
+				header.classList.add(this.currentSort.direction === 'asc' ? 'sorted-asc' : 'sorted-desc');
+			}
+		});
 	},
 
 	async loadMaterials() {
-		const materials = await API.getMaterials();
+		this.materials = await API.getMaterials();
+		if (!this.currentSort.column) {
+			this.currentSort = { column: 'id', direction: 'asc' };
+		}
+		
+		const column = this.currentSort.column;
+		const direction = this.currentSort.direction;
+		
+		this.materials.sort((a, b) => {
+			let aVal = a[column];
+			let bVal = b[column];
+
+			if (column === 'id' || column === 'density' || column === 'price') {
+				aVal = parseFloat(aVal) || 0;
+				bVal = parseFloat(bVal) || 0;
+			} else {
+				aVal = (aVal || '').toString().toLowerCase();
+				bVal = (bVal || '').toString().toLowerCase();
+			}
+
+			if (aVal < bVal) return direction === 'asc' ? -1 : 1;
+			if (aVal > bVal) return direction === 'asc' ? 1 : -1;
+			return 0;
+		});
+
+		this.renderMaterials();
+		this.updateSortIndicators();
+	},
+
+	renderMaterials() {
 		const tbody = document.querySelector('#materialsTable tbody');
 		if (!tbody) {
 			console.error('Не найден элемент #materialsTable tbody');
@@ -35,7 +120,7 @@ const MaterialsPage = {
 		}
 		tbody.innerHTML = '';
 
-		materials.forEach(material => {
+		this.materials.forEach(material => {
 			const row = document.createElement('tr');
 			row.innerHTML = `
 				<td>${material.id}</td>

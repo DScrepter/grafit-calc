@@ -18,7 +18,7 @@ class OperationManager {
 				o.created_at, o.updated_at
 			FROM operations o
 			LEFT JOIN units u ON o.unit_id = u.id
-			ORDER BY o.number"
+			ORDER BY CAST(o.number AS UNSIGNED), o.number"
 		);
 	}
 

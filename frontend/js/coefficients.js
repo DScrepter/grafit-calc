@@ -3,6 +3,9 @@
  */
 
 const CoefficientsPage = {
+	coefficients: [],
+	currentSort: { column: null, direction: 'asc' },
+
 	async load(container) {
 		container.innerHTML = `
 			<div class="page-content">
@@ -11,10 +14,10 @@ const CoefficientsPage = {
 				<table class="data-table" id="coefficientsTable">
 					<thead>
 						<tr>
-							<th>ID</th>
-							<th>Название</th>
-							<th>Значение (%)</th>
-							<th>Описание</th>
+							<th class="sortable" data-column="id">ID</th>
+							<th class="sortable" data-column="name">Название</th>
+							<th class="sortable" data-column="value">Значение (%)</th>
+							<th class="sortable" data-column="description">Описание</th>
 							<th>Действия</th>
 						</tr>
 					</thead>
@@ -24,10 +27,92 @@ const CoefficientsPage = {
 		`;
 
 		await this.loadCoefficients();
+		this.setupSorting();
+	},
+
+	setupSorting() {
+		const headers = document.querySelectorAll('#coefficientsTable th.sortable');
+		headers.forEach(header => {
+			header.style.cursor = 'pointer';
+			header.addEventListener('click', () => {
+				const column = header.dataset.column;
+				this.sortBy(column);
+			});
+		});
+	},
+
+	sortBy(column) {
+		if (this.currentSort.column === column) {
+			this.currentSort.direction = this.currentSort.direction === 'asc' ? 'desc' : 'asc';
+		} else {
+			this.currentSort.column = column;
+			this.currentSort.direction = 'asc';
+		}
+
+		this.coefficients.sort((a, b) => {
+			let aVal = a[column];
+			let bVal = b[column];
+
+			if (column === 'id' || column === 'value') {
+				aVal = parseFloat(aVal) || 0;
+				bVal = parseFloat(bVal) || 0;
+			} else {
+				aVal = (aVal || '').toString().toLowerCase();
+				bVal = (bVal || '').toString().toLowerCase();
+			}
+
+			if (aVal < bVal) return this.currentSort.direction === 'asc' ? -1 : 1;
+			if (aVal > bVal) return this.currentSort.direction === 'asc' ? 1 : -1;
+			return 0;
+		});
+
+		this.renderCoefficients();
+		this.updateSortIndicators();
+	},
+
+	updateSortIndicators() {
+		const headers = document.querySelectorAll('#coefficientsTable th.sortable');
+		headers.forEach(header => {
+			const column = header.dataset.column;
+			header.classList.remove('sorted-asc', 'sorted-desc');
+			
+			if (this.currentSort.column === column) {
+				header.classList.add(this.currentSort.direction === 'asc' ? 'sorted-asc' : 'sorted-desc');
+			}
+		});
 	},
 
 	async loadCoefficients() {
-		const coefficients = await API.getCoefficients();
+		this.coefficients = await API.getCoefficients();
+		if (!this.currentSort.column) {
+			this.currentSort = { column: 'id', direction: 'asc' };
+		}
+		
+		const column = this.currentSort.column;
+		const direction = this.currentSort.direction;
+		
+		this.coefficients.sort((a, b) => {
+			let aVal = a[column];
+			let bVal = b[column];
+
+			if (column === 'id' || column === 'value') {
+				aVal = parseFloat(aVal) || 0;
+				bVal = parseFloat(bVal) || 0;
+			} else {
+				aVal = (aVal || '').toString().toLowerCase();
+				bVal = (bVal || '').toString().toLowerCase();
+			}
+
+			if (aVal < bVal) return direction === 'asc' ? -1 : 1;
+			if (aVal > bVal) return direction === 'asc' ? 1 : -1;
+			return 0;
+		});
+
+		this.renderCoefficients();
+		this.updateSortIndicators();
+	},
+
+	renderCoefficients() {
 		const tbody = document.querySelector('#coefficientsTable tbody');
 		if (!tbody) {
 			console.error('Не найден элемент #coefficientsTable tbody');
@@ -35,7 +120,7 @@ const CoefficientsPage = {
 		}
 		tbody.innerHTML = '';
 
-		coefficients.forEach(coef => {
+		this.coefficients.forEach(coef => {
 			const row = document.createElement('tr');
 			row.innerHTML = `
 				<td>${coef.id}</td>

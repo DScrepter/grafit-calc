@@ -3,6 +3,9 @@
  */
 
 const OperationsPage = {
+	operations: [],
+	currentSort: { column: null, direction: 'asc' },
+
 	async load(container) {
 		container.innerHTML = `
 			<div class="page-content">
@@ -11,10 +14,10 @@ const OperationsPage = {
 				<table class="data-table" id="operationsTable">
 					<thead>
 						<tr>
-							<th>Номер</th>
-							<th>Описание</th>
-							<th>Единица измерения</th>
-							<th>Стоимость (руб/ед)</th>
+							<th class="sortable" data-column="number">Номер</th>
+							<th class="sortable" data-column="description">Описание</th>
+							<th class="sortable" data-column="unit_name">Единица измерения</th>
+							<th class="sortable" data-column="cost">Стоимость (руб/ед)</th>
 							<th>Действия</th>
 						</tr>
 					</thead>
@@ -24,10 +27,103 @@ const OperationsPage = {
 		`;
 
 		await this.loadOperations();
+		this.setupSorting();
+	},
+
+	setupSorting() {
+		const headers = document.querySelectorAll('#operationsTable th.sortable');
+		headers.forEach(header => {
+			header.style.cursor = 'pointer';
+			header.addEventListener('click', () => {
+				const column = header.dataset.column;
+				this.sortBy(column);
+			});
+		});
+	},
+
+	sortBy(column) {
+		if (this.currentSort.column === column) {
+			this.currentSort.direction = this.currentSort.direction === 'asc' ? 'desc' : 'asc';
+		} else {
+			this.currentSort.column = column;
+			this.currentSort.direction = 'asc';
+		}
+
+		this.operations.sort((a, b) => {
+			let aVal = a[column];
+			let bVal = b[column];
+
+			// Для числовых столбцов
+			if (column === 'number') {
+				aVal = parseInt(aVal) || 0;
+				bVal = parseInt(bVal) || 0;
+			} else if (column === 'cost') {
+				aVal = parseFloat(aVal) || 0;
+				bVal = parseFloat(bVal) || 0;
+			} else {
+				// Для текстовых столбцов
+				aVal = (aVal || '').toString().toLowerCase();
+				bVal = (bVal || '').toString().toLowerCase();
+			}
+
+			if (aVal < bVal) return this.currentSort.direction === 'asc' ? -1 : 1;
+			if (aVal > bVal) return this.currentSort.direction === 'asc' ? 1 : -1;
+			return 0;
+		});
+
+		this.renderOperations();
+		this.updateSortIndicators();
+	},
+
+	updateSortIndicators() {
+		const headers = document.querySelectorAll('#operationsTable th.sortable');
+		headers.forEach(header => {
+			const column = header.dataset.column;
+			header.classList.remove('sorted-asc', 'sorted-desc');
+			
+			if (this.currentSort.column === column) {
+				header.classList.add(this.currentSort.direction === 'asc' ? 'sorted-asc' : 'sorted-desc');
+			}
+		});
 	},
 
 	async loadOperations() {
-		const operations = await API.getOperations();
+		this.operations = await API.getOperations();
+		// Если сортировка не установлена, сортируем по номеру численно при первой загрузке
+		if (!this.currentSort.column) {
+			this.currentSort = { column: 'number', direction: 'asc' };
+		}
+		// Применяем текущую сортировку (без переключения направления)
+		const column = this.currentSort.column;
+		const direction = this.currentSort.direction;
+		
+		this.operations.sort((a, b) => {
+			let aVal = a[column];
+			let bVal = b[column];
+
+			// Для числовых столбцов
+			if (column === 'number') {
+				aVal = parseInt(aVal) || 0;
+				bVal = parseInt(bVal) || 0;
+			} else if (column === 'cost') {
+				aVal = parseFloat(aVal) || 0;
+				bVal = parseFloat(bVal) || 0;
+			} else {
+				// Для текстовых столбцов
+				aVal = (aVal || '').toString().toLowerCase();
+				bVal = (bVal || '').toString().toLowerCase();
+			}
+
+			if (aVal < bVal) return direction === 'asc' ? -1 : 1;
+			if (aVal > bVal) return direction === 'asc' ? 1 : -1;
+			return 0;
+		});
+
+		this.renderOperations();
+		this.updateSortIndicators();
+	},
+
+	renderOperations() {
 		const tbody = document.querySelector('#operationsTable tbody');
 		if (!tbody) {
 			console.error('Не найден элемент #operationsTable tbody');
@@ -35,7 +131,7 @@ const OperationsPage = {
 		}
 		tbody.innerHTML = '';
 
-		operations.forEach(operation => {
+		this.operations.forEach(operation => {
 			const row = document.createElement('tr');
 			row.innerHTML = `
 				<td>${operation.number}</td>

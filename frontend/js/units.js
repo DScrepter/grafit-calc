@@ -3,6 +3,9 @@
  */
 
 const UnitsPage = {
+	units: [],
+	currentSort: { column: null, direction: 'asc' },
+
 	async load(container) {
 		container.innerHTML = `
 			<div class="page-content">
@@ -11,8 +14,8 @@ const UnitsPage = {
 				<table class="data-table" id="unitsTable">
 					<thead>
 						<tr>
-							<th>ID</th>
-							<th>Название</th>
+							<th class="sortable" data-column="id">ID</th>
+							<th class="sortable" data-column="name">Название</th>
 							<th>Действия</th>
 						</tr>
 					</thead>
@@ -22,10 +25,92 @@ const UnitsPage = {
 		`;
 
 		await this.loadUnits();
+		this.setupSorting();
+	},
+
+	setupSorting() {
+		const headers = document.querySelectorAll('#unitsTable th.sortable');
+		headers.forEach(header => {
+			header.style.cursor = 'pointer';
+			header.addEventListener('click', () => {
+				const column = header.dataset.column;
+				this.sortBy(column);
+			});
+		});
+	},
+
+	sortBy(column) {
+		if (this.currentSort.column === column) {
+			this.currentSort.direction = this.currentSort.direction === 'asc' ? 'desc' : 'asc';
+		} else {
+			this.currentSort.column = column;
+			this.currentSort.direction = 'asc';
+		}
+
+		this.units.sort((a, b) => {
+			let aVal = a[column];
+			let bVal = b[column];
+
+			if (column === 'id') {
+				aVal = parseInt(aVal) || 0;
+				bVal = parseInt(bVal) || 0;
+			} else {
+				aVal = (aVal || '').toString().toLowerCase();
+				bVal = (bVal || '').toString().toLowerCase();
+			}
+
+			if (aVal < bVal) return this.currentSort.direction === 'asc' ? -1 : 1;
+			if (aVal > bVal) return this.currentSort.direction === 'asc' ? 1 : -1;
+			return 0;
+		});
+
+		this.renderUnits();
+		this.updateSortIndicators();
+	},
+
+	updateSortIndicators() {
+		const headers = document.querySelectorAll('#unitsTable th.sortable');
+		headers.forEach(header => {
+			const column = header.dataset.column;
+			header.classList.remove('sorted-asc', 'sorted-desc');
+			
+			if (this.currentSort.column === column) {
+				header.classList.add(this.currentSort.direction === 'asc' ? 'sorted-asc' : 'sorted-desc');
+			}
+		});
 	},
 
 	async loadUnits() {
-		const units = await API.getUnits();
+		this.units = await API.getUnits();
+		if (!this.currentSort.column) {
+			this.currentSort = { column: 'id', direction: 'asc' };
+		}
+		
+		const column = this.currentSort.column;
+		const direction = this.currentSort.direction;
+		
+		this.units.sort((a, b) => {
+			let aVal = a[column];
+			let bVal = b[column];
+
+			if (column === 'id') {
+				aVal = parseInt(aVal) || 0;
+				bVal = parseInt(bVal) || 0;
+			} else {
+				aVal = (aVal || '').toString().toLowerCase();
+				bVal = (bVal || '').toString().toLowerCase();
+			}
+
+			if (aVal < bVal) return direction === 'asc' ? -1 : 1;
+			if (aVal > bVal) return direction === 'asc' ? 1 : -1;
+			return 0;
+		});
+
+		this.renderUnits();
+		this.updateSortIndicators();
+	},
+
+	renderUnits() {
 		const tbody = document.querySelector('#unitsTable tbody');
 		if (!tbody) {
 			console.error('Не найден элемент #unitsTable tbody');
@@ -33,7 +118,7 @@ const UnitsPage = {
 		}
 		tbody.innerHTML = '';
 
-		units.forEach(unit => {
+		this.units.forEach(unit => {
 			const row = document.createElement('tr');
 			row.innerHTML = `
 				<td>${unit.id}</td>

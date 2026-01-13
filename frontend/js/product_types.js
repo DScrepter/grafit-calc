@@ -3,6 +3,9 @@
  */
 
 const ProductTypesPage = {
+	types: [],
+	currentSort: { column: null, direction: 'asc' },
+
 	async load(container) {
 		container.innerHTML = `
 			<div class="page-content">
@@ -11,10 +14,10 @@ const ProductTypesPage = {
 				<table class="data-table" id="productTypesTable">
 					<thead>
 						<tr>
-							<th>ID</th>
-							<th>Название</th>
-							<th>Описание</th>
-							<th>Параметры</th>
+							<th class="sortable" data-column="id">ID</th>
+							<th class="sortable" data-column="name">Название</th>
+							<th class="sortable" data-column="description">Описание</th>
+							<th class="sortable" data-column="parameters">Параметры</th>
 							<th>Действия</th>
 						</tr>
 					</thead>
@@ -24,10 +27,100 @@ const ProductTypesPage = {
 		`;
 
 		await this.loadProductTypes();
+		this.setupSorting();
+	},
+
+	setupSorting() {
+		const headers = document.querySelectorAll('#productTypesTable th.sortable');
+		headers.forEach(header => {
+			header.style.cursor = 'pointer';
+			header.addEventListener('click', () => {
+				const column = header.dataset.column;
+				this.sortBy(column);
+			});
+		});
+	},
+
+	sortBy(column) {
+		if (this.currentSort.column === column) {
+			this.currentSort.direction = this.currentSort.direction === 'asc' ? 'desc' : 'asc';
+		} else {
+			this.currentSort.column = column;
+			this.currentSort.direction = 'asc';
+		}
+
+		this.types.sort((a, b) => {
+			let aVal, bVal;
+
+			if (column === 'id') {
+				aVal = parseInt(a.id) || 0;
+				bVal = parseInt(b.id) || 0;
+			} else if (column === 'parameters') {
+				const aParams = a.parameters.map(p => `${p.label} (${p.unit})`).join(', ') || '-';
+				const bParams = b.parameters.map(p => `${p.label} (${p.unit})`).join(', ') || '-';
+				aVal = aParams.toLowerCase();
+				bVal = bParams.toLowerCase();
+			} else {
+				aVal = (a[column] || '').toString().toLowerCase();
+				bVal = (b[column] || '').toString().toLowerCase();
+			}
+
+			if (aVal < bVal) return this.currentSort.direction === 'asc' ? -1 : 1;
+			if (aVal > bVal) return this.currentSort.direction === 'asc' ? 1 : -1;
+			return 0;
+		});
+
+		this.renderProductTypes();
+		this.updateSortIndicators();
+	},
+
+	updateSortIndicators() {
+		const headers = document.querySelectorAll('#productTypesTable th.sortable');
+		headers.forEach(header => {
+			const column = header.dataset.column;
+			header.classList.remove('sorted-asc', 'sorted-desc');
+			
+			if (this.currentSort.column === column) {
+				header.classList.add(this.currentSort.direction === 'asc' ? 'sorted-asc' : 'sorted-desc');
+			}
+		});
 	},
 
 	async loadProductTypes() {
-		const types = await API.getProductTypes();
+		this.types = await API.getProductTypes();
+		if (!this.currentSort.column) {
+			this.currentSort = { column: 'id', direction: 'asc' };
+		}
+		
+		const column = this.currentSort.column;
+		const direction = this.currentSort.direction;
+		
+		this.types.sort((a, b) => {
+			let aVal, bVal;
+
+			if (column === 'id') {
+				aVal = parseInt(a.id) || 0;
+				bVal = parseInt(b.id) || 0;
+			} else if (column === 'parameters') {
+				const aParams = a.parameters.map(p => `${p.label} (${p.unit})`).join(', ') || '-';
+				const bParams = b.parameters.map(p => `${p.label} (${p.unit})`).join(', ') || '-';
+				aVal = aParams.toLowerCase();
+				bVal = bParams.toLowerCase();
+			} else {
+				aVal = (a[column] || '').toString().toLowerCase();
+				bVal = (b[column] || '').toString().toLowerCase();
+			}
+
+			if (aVal < bVal) return direction === 'asc' ? -1 : 1;
+			if (aVal > bVal) return direction === 'asc' ? 1 : -1;
+			return 0;
+		});
+
+		this.renderProductTypes();
+		this.updateSortIndicators();
+	},
+
+	renderProductTypes() {
 		const tbody = document.querySelector('#productTypesTable tbody');
 		if (!tbody) {
 			console.error('Не найден элемент #productTypesTable tbody');
@@ -35,7 +128,7 @@ const ProductTypesPage = {
 		}
 		tbody.innerHTML = '';
 
-		types.forEach(type => {
+		this.types.forEach(type => {
 			const row = document.createElement('tr');
 			const params = type.parameters.map(p => `${p.label} (${p.unit})`).join(', ');
 			row.innerHTML = `

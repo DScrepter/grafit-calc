@@ -3,6 +3,9 @@
  */
 
 const UsersPage = {
+	users: [],
+	currentSort: { column: null, direction: 'asc' },
+
 	async load(container) {
 		container.innerHTML = `
 			<div class="page-header">
@@ -13,13 +16,13 @@ const UsersPage = {
 				<table class="data-table" id="usersTable">
 					<thead>
 						<tr>
-							<th>ID</th>
-							<th>Имя</th>
-							<th>Фамилия</th>
-							<th>Имя пользователя</th>
-							<th>Email</th>
-							<th>Роль</th>
-							<th>Дата регистрации</th>
+							<th class="sortable" data-column="id">ID</th>
+							<th class="sortable" data-column="first_name">Имя</th>
+							<th class="sortable" data-column="last_name">Фамилия</th>
+							<th class="sortable" data-column="username">Имя пользователя</th>
+							<th class="sortable" data-column="email">Email</th>
+							<th class="sortable" data-column="role">Роль</th>
+							<th class="sortable" data-column="created_at">Дата регистрации</th>
 							<th>Действия</th>
 						</tr>
 					</thead>
@@ -79,50 +82,140 @@ const UsersPage = {
 
 		await this.loadUsers();
 		this.setupEventListeners();
+		this.setupSorting();
+	},
+
+	setupSorting() {
+		const headers = document.querySelectorAll('#usersTable th.sortable');
+		headers.forEach(header => {
+			header.style.cursor = 'pointer';
+			header.addEventListener('click', () => {
+				const column = header.dataset.column;
+				this.sortBy(column);
+			});
+		});
+	},
+
+	sortBy(column) {
+		if (this.currentSort.column === column) {
+			this.currentSort.direction = this.currentSort.direction === 'asc' ? 'desc' : 'asc';
+		} else {
+			this.currentSort.column = column;
+			this.currentSort.direction = 'asc';
+		}
+
+		this.users.sort((a, b) => {
+			let aVal = a[column];
+			let bVal = b[column];
+
+			if (column === 'id') {
+				aVal = parseInt(aVal) || 0;
+				bVal = parseInt(bVal) || 0;
+			} else if (column === 'created_at') {
+				aVal = new Date(aVal).getTime() || 0;
+				bVal = new Date(bVal).getTime() || 0;
+			} else {
+				aVal = (aVal || '').toString().toLowerCase();
+				bVal = (bVal || '').toString().toLowerCase();
+			}
+
+			if (aVal < bVal) return this.currentSort.direction === 'asc' ? -1 : 1;
+			if (aVal > bVal) return this.currentSort.direction === 'asc' ? 1 : -1;
+			return 0;
+		});
+
+		this.renderUsers();
+		this.updateSortIndicators();
+	},
+
+	updateSortIndicators() {
+		const headers = document.querySelectorAll('#usersTable th.sortable');
+		headers.forEach(header => {
+			const column = header.dataset.column;
+			header.classList.remove('sorted-asc', 'sorted-desc');
+			
+			if (this.currentSort.column === column) {
+				header.classList.add(this.currentSort.direction === 'asc' ? 'sorted-asc' : 'sorted-desc');
+			}
+		});
 	},
 
 	async loadUsers() {
 		const tbody = document.getElementById('usersTableBody');
 		try {
-			const users = await API.getUsers();
+			this.users = await API.getUsers();
 			
-			if (users.length === 0) {
+			if (this.users.length === 0) {
 				tbody.innerHTML = '<tr><td colspan="8" class="text-center">Пользователи не найдены</td></tr>';
 				return;
 			}
 
-			tbody.innerHTML = users.map(user => {
-				const roleNames = {
-					'super_admin': 'Супер-администратор',
-					'admin': 'Администратор',
-					'user': 'Пользователь',
-					'guest': 'Гость'
-				};
-				const roleName = roleNames[user.role] || user.role;
-				const createdDate = new Date(user.created_at).toLocaleDateString('ru-RU');
-				const fullName = [user.first_name, user.last_name].filter(Boolean).join(' ') || '-';
+			if (!this.currentSort.column) {
+				this.currentSort = { column: 'id', direction: 'asc' };
+			}
+			
+			const column = this.currentSort.column;
+			const direction = this.currentSort.direction;
+			
+			this.users.sort((a, b) => {
+				let aVal = a[column];
+				let bVal = b[column];
 
-				return `
-					<tr>
-						<td>${user.id}</td>
-						<td>${user.first_name || '-'}</td>
-						<td>${user.last_name || '-'}</td>
-						<td>${user.username}</td>
-						<td>${user.email}</td>
-						<td>${roleName}</td>
-						<td>${createdDate}</td>
-						<td>
-							<div class="action-buttons">
-								<button class="btn btn-small btn-primary" onclick="UsersPage.editUser(${user.id})" title="Редактировать">✏️</button>
-								${user.role !== 'super_admin' ? `<button class="btn btn-small btn-danger" onclick="UsersPage.deleteUser(${user.id}, '${user.username}')" title="Удалить">🗑</button>` : ''}
-							</div>
-						</td>
-					</tr>
-				`;
-			}).join('');
+				if (column === 'id') {
+					aVal = parseInt(aVal) || 0;
+					bVal = parseInt(bVal) || 0;
+				} else if (column === 'created_at') {
+					aVal = new Date(aVal).getTime() || 0;
+					bVal = new Date(bVal).getTime() || 0;
+				} else {
+					aVal = (aVal || '').toString().toLowerCase();
+					bVal = (bVal || '').toString().toLowerCase();
+				}
+
+				if (aVal < bVal) return direction === 'asc' ? -1 : 1;
+				if (aVal > bVal) return direction === 'asc' ? 1 : -1;
+				return 0;
+			});
+
+			this.renderUsers();
+			this.updateSortIndicators();
 		} catch (error) {
 			tbody.innerHTML = `<tr><td colspan="8" class="text-center error-message">Ошибка загрузки: ${error.message}</td></tr>`;
 		}
+	},
+
+	renderUsers() {
+		const tbody = document.getElementById('usersTableBody');
+		if (!tbody) return;
+
+		tbody.innerHTML = this.users.map(user => {
+			const roleNames = {
+				'super_admin': 'Супер-администратор',
+				'admin': 'Администратор',
+				'user': 'Пользователь',
+				'guest': 'Гость'
+			};
+			const roleName = roleNames[user.role] || user.role;
+			const createdDate = new Date(user.created_at).toLocaleDateString('ru-RU');
+
+			return `
+				<tr>
+					<td>${user.id}</td>
+					<td>${user.first_name || '-'}</td>
+					<td>${user.last_name || '-'}</td>
+					<td>${user.username}</td>
+					<td>${user.email}</td>
+					<td>${roleName}</td>
+					<td>${createdDate}</td>
+					<td>
+						<div class="action-buttons">
+							<button class="btn btn-small btn-primary" onclick="UsersPage.editUser(${user.id})" title="Редактировать">✏️</button>
+							${user.role !== 'super_admin' ? `<button class="btn btn-small btn-danger" onclick="UsersPage.deleteUser(${user.id}, '${user.username}')" title="Удалить">🗑</button>` : ''}
+						</div>
+					</td>
+				</tr>
+			`;
+		}).join('');
 	},
 
 	setupEventListeners() {
