@@ -12,4 +12,4 @@ Thumbs.db
 
 # Configuration files with sensitive data
 config/config.php
-backend/config/config.php
+# backend/config/config.php - не исключаем, т.к. он не содержит паролей, только загружает config/config.php
