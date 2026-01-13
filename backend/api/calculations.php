@@ -50,6 +50,19 @@ try {
 				if (isset($calculation['result'])) {
 					$calculation['result'] = json_decode($calculation['result'], true);
 				}
+				
+				// Получаем лейблы параметров из типа изделия
+				$productTypeId = $calculation['product_type_id'];
+				$paramLabels = $db->fetchAll(
+					"SELECT name, label FROM product_type_parameters WHERE product_type_id = ?",
+					[$productTypeId]
+				);
+				$paramLabelMap = [];
+				foreach ($paramLabels as $param) {
+					$paramLabelMap[$param['name']] = $param['label'];
+				}
+				$calculation['parameter_labels'] = $paramLabelMap;
+				
 				echo json_encode($calculation, JSON_UNESCAPED_UNICODE);
 			} else {
 				http_response_code(404);

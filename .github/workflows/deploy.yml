@@ -34,7 +34,7 @@ jobs:
           
           # Функция для rsync
           rsync_cmd() {
-            sshpass -p "${DEPLOY_PASSWORD}" rsync -avz --delete \
+            sshpass -p "${DEPLOY_PASSWORD}" rsync -avz \
               --exclude '.git' \
               --exclude '.github' \
               --exclude 'node_modules' \
@@ -46,6 +46,7 @@ jobs:
               --exclude 'Thumbs.db' \
               --no-owner \
               --no-group \
+              --checksum \
               -e "ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o LogLevel=ERROR" \
               ./ ${DEPLOY_USER}@${DEPLOY_HOST}:${DEPLOY_PATH}/
           }

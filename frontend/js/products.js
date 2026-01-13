@@ -121,11 +121,13 @@ const ProductsPage = {
 		const result = calculation.result || {};
 		const parameters = calculation.parameters || {};
 		const operations = calculation.operations || [];
+		const parameterLabels = calculation.parameter_labels || {};
+		const createdAt = new Date(calculation.created_at).toLocaleString('ru-RU');
 
 		let html = '<div class="modal" style="display: flex;">';
-		html += '<div class="modal-content" style="max-width: 800px; max-height: 90vh; overflow-y: auto;">';
+		html += '<div class="modal-content" style="max-width: 900px; max-height: 90vh; overflow-y: auto;">';
 		html += '<div class="modal-header">';
-		html += '<h3>Калькуляция: ' + this.escapeHtml(calculation.product_name) + '</h3>';
+		html += '<h3>Калькуляция себестоимости: ' + this.escapeHtml(calculation.product_name) + '</h3>';
 		html += '<button class="modal-close" onclick="this.closest(\'.modal\').remove()">&times;</button>';
 		html += '</div>';
 		html += '<div class="modal-body">';
@@ -133,7 +135,8 @@ const ProductsPage = {
 		// Основная информация
 		html += '<div class="field-group">';
 		html += '<div class="field-group-title">Основная информация</div>';
-		html += '<div class="result-row"><span class="result-label">Название:</span><span class="result-value">' + this.escapeHtml(calculation.product_name) + '</span></div>';
+		html += '<div class="result-row"><span class="result-label">Дата создания:</span><span class="result-value">' + createdAt + '</span></div>';
+		html += '<div class="result-row"><span class="result-label">Название изделия:</span><span class="result-value">' + this.escapeHtml(calculation.product_name) + '</span></div>';
 		html += '<div class="result-row"><span class="result-label">Материал:</span><span class="result-value">' + this.escapeHtml(calculation.material_name || '-') + '</span></div>';
 		html += '<div class="result-row"><span class="result-label">Тип изделия:</span><span class="result-value">' + this.escapeHtml(calculation.product_type_name || '-') + '</span></div>';
 		html += '</div>';
@@ -142,31 +145,107 @@ const ProductsPage = {
 		if (Object.keys(parameters).length > 0) {
 			html += '<div class="field-group">';
 			html += '<div class="field-group-title">Параметры изделия</div>';
+			html += '<table class="data-table">';
+			html += '<thead><tr><th>Параметр</th><th>Значение</th></tr></thead>';
+			html += '<tbody>';
 			Object.keys(parameters).forEach(key => {
-				html += '<div class="result-row"><span class="result-label">' + this.escapeHtml(key) + ':</span><span class="result-value">' + parameters[key] + '</span></div>';
+				const label = parameterLabels[key] || key;
+				html += '<tr>';
+				html += '<td>' + this.escapeHtml(label) + '</td>';
+				html += '<td>' + this.escapeHtml(parameters[key]) + '</td>';
+				html += '</tr>';
 			});
+			html += '</tbody></table>';
 			html += '</div>';
 		}
 
-		// Результаты
+		// Результаты расчета (детализация)
 		if (Object.keys(result).length > 0) {
 			html += '<div class="field-group">';
 			html += '<div class="field-group-title">Результаты расчета</div>';
+			html += '<table class="data-table">';
+			html += '<tbody>';
+			
 			if (result.workpiece_volume !== undefined) {
-				html += '<div class="result-row"><span class="result-label">Объем заготовки:</span><span class="result-value">' + parseFloat(result.workpiece_volume).toFixed(2) + ' мм³</span></div>';
+				html += '<tr><td>Объем заготовки</td><td>' + this.formatNumber(result.workpiece_volume) + ' мм³</td></tr>';
 			}
 			if (result.product_volume !== undefined) {
-				html += '<div class="result-row"><span class="result-label">Объем изделия:</span><span class="result-value">' + parseFloat(result.product_volume).toFixed(2) + ' мм³</span></div>';
+				html += '<tr><td>Объем изделия</td><td>' + this.formatNumber(result.product_volume) + ' мм³</td></tr>';
 			}
+			if (result.waste_volume !== undefined) {
+				html += '<tr><td>Объем отходов</td><td>' + this.formatNumber(result.waste_volume) + ' мм³</td></tr>';
+			}
+			if (result.workpiece_mass !== undefined) {
+				html += '<tr><td>Масса заготовки</td><td>' + this.formatNumber(result.workpiece_mass, 4) + ' кг</td></tr>';
+			}
+			if (result.product_mass !== undefined) {
+				html += '<tr><td>Масса изделия</td><td>' + this.formatNumber(result.product_mass, 4) + ' кг</td></tr>';
+			}
+			if (result.waste_mass !== undefined) {
+				html += '<tr><td>Масса отходов</td><td>' + this.formatNumber(result.waste_mass, 4) + ' кг</td></tr>';
+			}
+			if (result.material_cost !== undefined) {
+				html += '<tr><td>Стоимость материала</td><td>' + this.formatNumber(result.material_cost) + ' руб</td></tr>';
+			}
+			if (result.total_operations_cost !== undefined) {
+				html += '<tr><td>Зарплата (операции)</td><td>' + this.formatNumber(result.total_operations_cost) + ' руб</td></tr>';
+			}
+
+			// Коэффициенты
+			if (result.coefficients && result.coefficients.length > 0) {
+				html += '<tr><td colspan="2"><strong>Коэффициенты:</strong></td></tr>';
+				result.coefficients.forEach(coef => {
+					html += '<tr>';
+					html += '<td>' + this.escapeHtml(coef.name) + ' (' + coef.value + '%)</td>';
+					html += '<td>' + this.formatNumber(coef.amount || 0) + ' руб</td>';
+					html += '</tr>';
+				});
+				if (result.coefficients_cost !== undefined) {
+					html += '<tr><td><strong>Итого коэффициенты</strong></td><td><strong>' + this.formatNumber(result.coefficients_cost) + ' руб</strong></td></tr>';
+				}
+			}
+
+			html += '</tbody></table>';
+			
+			// Общая себестоимость - выделяем
 			if (result.total_cost_without_packaging !== undefined) {
-				html += '<div class="result-row"><span class="result-label">Общая себестоимость:</span><span class="result-value"><strong>' + parseFloat(result.total_cost_without_packaging).toFixed(2) + ' руб</strong></span></div>';
+				html += '<div class="result-row" style="margin-top: 20px; padding: 15px; background: #e3f2fd; border-radius: 4px; font-size: 18px;">';
+				html += '<span class="result-label" style="font-weight: 600;">Общая себестоимость:</span>';
+				html += '<span class="result-value" style="font-weight: bold; color: #1976d2;">' + this.formatNumber(result.total_cost_without_packaging) + ' руб</span>';
+				html += '</div>';
 			}
+			html += '</div>';
+		}
+
+		// Операции
+		if (operations && operations.length > 0) {
+			html += '<div class="field-group">';
+			html += '<div class="field-group-title">Операции</div>';
+			html += '<table class="data-table">';
+			html += '<thead><tr>';
+			html += '<th>Номер</th>';
+			html += '<th>Описание</th>';
+			html += '<th>Коэф. сложности</th>';
+			html += '<th>Стоимость</th>';
+			html += '</tr></thead>';
+			html += '<tbody>';
+			operations.forEach(op => {
+				html += '<tr>';
+				html += '<td>' + this.escapeHtml(op.operation_number || '-') + '</td>';
+				html += '<td>' + this.escapeHtml(op.operation_description || '-') + '</td>';
+				html += '<td>' + this.formatNumber(op.complexity_coefficient || 1, 2) + '</td>';
+				html += '<td>' + this.formatNumber(op.total_cost || 0) + ' руб</td>';
+				html += '</tr>';
+			});
+			html += '</tbody></table>';
 			html += '</div>';
 		}
 
 		html += '</div>';
 		html += '<div class="modal-footer">';
 		html += '<button class="btn btn-primary" onclick="ProductsPage.edit(' + calculation.id + '); this.closest(\'.modal\').remove();">Редактировать</button>';
+		html += '<button class="btn btn-secondary" onclick="ProductsPage.export(' + calculation.id + ')" title="Скачать PDF">📄 Экспорт PDF</button>';
+		html += '<button class="btn btn-secondary" onclick="ProductsPage.print(' + calculation.id + ')" title="Печать">🖨 Печать</button>';
 		html += '<button class="btn btn-secondary" onclick="this.closest(\'.modal\').remove()">Закрыть</button>';
 		html += '</div>';
 		html += '</div></div>';
@@ -211,5 +290,12 @@ const ProductsPage = {
 		const div = document.createElement('div');
 		div.textContent = text;
 		return div.innerHTML;
+	},
+
+	formatNumber(value, decimals = 2) {
+		if (value === null || value === undefined) return '-';
+		const num = parseFloat(value);
+		if (isNaN(num)) return '-';
+		return num.toFixed(decimals).replace(/\B(?=(\d{3})+(?!\d))/g, ' ');
 	}
 };
