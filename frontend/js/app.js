@@ -47,6 +47,51 @@ document.addEventListener('DOMContentLoaded', async () => {
 	// Инициализируем роутер (он сам проверит авторизацию)
 	await router.checkAuth();
 
+	// Инициализация иконки чата и обновление уведомлений в навигации
+	if (typeof ChatIcon !== 'undefined') {
+		// ChatIcon уже инициализирован
+		updateUsersNavBadge();
+		setInterval(updateUsersNavBadge, 10000); // Обновляем каждые 10 секунд
+	}
+
+	async function updateUsersNavBadge() {
+		const badge = document.getElementById('usersNavBadge');
+		const link = document.getElementById('usersNavLink');
+		if (!badge || !link) return;
+
+		try {
+			const authData = await API.checkAuth();
+			if (!authData.logged_in || !authData.user) return;
+
+			const isSupport = authData.user.role === 'support' || 
+			                authData.user.role === 'super_admin' || 
+			                authData.user.role === 'admin';
+
+			if (!isSupport) {
+				badge.style.display = 'none';
+				return;
+			}
+
+			// Получаем список чатов и считаем общее количество непрочитанных
+			const chats = await API.getSupportChats();
+			let totalUnread = 0;
+			for (const chat of chats) {
+				if (chat.unread_count) {
+					totalUnread += parseInt(chat.unread_count) || 0;
+				}
+			}
+
+			if (totalUnread > 0) {
+				badge.textContent = totalUnread > 99 ? '99+' : totalUnread;
+				badge.style.display = 'inline-block';
+			} else {
+				badge.style.display = 'none';
+			}
+		} catch (error) {
+			console.error('Ошибка обновления уведомления в навигации:', error);
+		}
+	}
+
 	// Обработка выхода
 	const logoutBtn = document.getElementById('logoutBtn');
 	if (logoutBtn) {

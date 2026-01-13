@@ -38,7 +38,7 @@
 				<li class="nav-group" id="adminGroup">
 					<span class="nav-group-title">Администрирование</span>
 					<ul class="nav-items">
-						<li data-page="users"><a href="/calculator?page=users">Пользователи</a></li>
+						<li data-page="users"><a href="/calculator?page=users" id="usersNavLink">Пользователи<span class="nav-badge" id="usersNavBadge" style="display: none;">0</span></a></li>
 						<?php if ($auth->isSuperAdmin()): ?>
 							<li data-page="migrations"><a href="/calculator?page=migrations">Обновления БД</a></li>
 						<?php endif; ?>

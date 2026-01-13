@@ -5,6 +5,8 @@
 const UsersPage = {
 	users: [],
 	currentSort: { column: null, direction: 'asc' },
+	unreadCounts: {},
+	isSupport: false,
 
 	async load(container) {
 		container.innerHTML = `
@@ -21,14 +23,15 @@ const UsersPage = {
 							<th class="sortable" data-column="last_name">Фамилия</th>
 							<th class="sortable" data-column="username">Имя пользователя</th>
 							<th class="sortable" data-column="email">Email</th>
-							<th class="sortable" data-column="role">Роль</th>
-							<th class="sortable" data-column="created_at">Дата регистрации</th>
-							<th>Действия</th>
+					<th class="sortable" data-column="role">Роль</th>
+					<th class="sortable" data-column="created_at">Дата регистрации</th>
+					<th>Чат</th>
+					<th>Действия</th>
 						</tr>
 					</thead>
 					<tbody id="usersTableBody">
 						<tr>
-							<td colspan="8" class="text-center">Загрузка...</td>
+							<td colspan="9" class="text-center">Загрузка...</td>
 						</tr>
 					</tbody>
 				</table>
@@ -63,6 +66,7 @@ const UsersPage = {
 								<select id="userRole" name="role" required>
 									<option value="guest">Гость</option>
 									<option value="user">Пользователь</option>
+									<option value="support">Техподдержка</option>
 									<option value="admin">Администратор</option>
 									<option value="super_admin" id="superAdminOption" style="display: none;">Супер-администратор</option>
 								</select>
@@ -81,8 +85,40 @@ const UsersPage = {
 		`;
 
 		await this.loadUsers();
+		await this.checkSupportRole();
+		await this.loadUnreadCounts();
 		this.setupEventListeners();
 		this.setupSorting();
+	},
+
+	async checkSupportRole() {
+		try {
+			const authData = await API.checkAuth();
+			if (authData.logged_in && authData.user) {
+				this.isSupport = authData.user.role === 'support' || 
+				                authData.user.role === 'super_admin' || 
+				                authData.user.role === 'admin';
+			}
+		} catch (error) {
+			console.error('Ошибка проверки роли:', error);
+		}
+	},
+
+	async loadUnreadCounts() {
+		if (!this.isSupport) return;
+
+		try {
+			// Загружаем количество непрочитанных для каждого пользователя
+			for (const user of this.users) {
+				if (user.role !== 'support' && user.role !== 'super_admin' && user.role !== 'admin') {
+					const data = await API.getSupportUnreadCount(user.id);
+					this.unreadCounts[user.id] = data.count || 0;
+				}
+			}
+			this.renderUsers();
+		} catch (error) {
+			console.error('Ошибка загрузки количества непрочитанных сообщений:', error);
+		}
 	},
 
 	setupSorting() {
@@ -146,7 +182,7 @@ const UsersPage = {
 			this.users = await API.getUsers();
 			
 			if (this.users.length === 0) {
-				tbody.innerHTML = '<tr><td colspan="8" class="text-center">Пользователи не найдены</td></tr>';
+				tbody.innerHTML = '<tr><td colspan="9" class="text-center">Пользователи не найдены</td></tr>';
 				return;
 			}
 
@@ -180,7 +216,7 @@ const UsersPage = {
 			this.renderUsers();
 			this.updateSortIndicators();
 		} catch (error) {
-			tbody.innerHTML = `<tr><td colspan="8" class="text-center error-message">Ошибка загрузки: ${error.message}</td></tr>`;
+			tbody.innerHTML = `<tr><td colspan="9" class="text-center error-message">Ошибка загрузки: ${error.message}</td></tr>`;
 		}
 	},
 
@@ -192,11 +228,24 @@ const UsersPage = {
 			const roleNames = {
 				'super_admin': 'Супер-администратор',
 				'admin': 'Администратор',
+				'support': 'Техподдержка',
 				'user': 'Пользователь',
 				'guest': 'Гость'
 			};
 			const roleName = roleNames[user.role] || user.role;
 			const createdDate = new Date(user.created_at).toLocaleDateString('ru-RU');
+			
+			// Иконка чата (только для поддержки и не для админов/поддержки)
+			let chatIconHtml = '';
+			if (this.isSupport && user.role !== 'support' && user.role !== 'super_admin' && user.role !== 'admin') {
+				const unreadCount = this.unreadCounts[user.id] || 0;
+				chatIconHtml = `
+					<div class="user-chat-icon" onclick="UsersPage.openUserChat(${user.id})" title="Открыть чат">
+						💬
+						${unreadCount > 0 ? `<span class="user-chat-badge">${unreadCount > 99 ? '99+' : unreadCount}</span>` : ''}
+					</div>
+				`;
+			}
 
 			return `
 				<tr>
@@ -207,6 +256,7 @@ const UsersPage = {
 					<td>${user.email}</td>
 					<td>${roleName}</td>
 					<td>${createdDate}</td>
+					<td>${chatIconHtml}</td>
 					<td>
 						<div class="action-buttons">
 							<button class="btn btn-small btn-primary" onclick="UsersPage.editUser(${user.id})" title="Редактировать">✏️</button>
@@ -367,6 +417,12 @@ const UsersPage = {
 		const form = document.getElementById('userForm');
 		if (form) {
 			form.reset();
+		}
+	},
+
+	async openUserChat(userId) {
+		if (window.supportChat) {
+			await window.supportChat.open(userId);
 		}
 	}
 };

@@ -70,6 +70,14 @@ class API {
 		};
 
 		const config = { ...defaultOptions, ...options };
+		
+		// Для Long Polling увеличиваем таймаут до 35 секунд (30 сек на сервере + запас)
+		let timeoutId = null;
+		if (endpoint.includes('long_poll=1')) {
+			const controller = new AbortController();
+			timeoutId = setTimeout(() => controller.abort(), 35000);
+			config.signal = controller.signal;
+		}
 
 		if (config.body && typeof config.body === 'object') {
 			config.body = JSON.stringify(config.body);
@@ -77,6 +85,10 @@ class API {
 
 		try {
 			const response = await fetch(url, config);
+			
+			if (timeoutId) {
+				clearTimeout(timeoutId);
+			}
 
 			// Проверяем, что ответ является JSON
 			const contentType = response.headers.get('content-type');
@@ -109,6 +121,15 @@ class API {
 
 			return data;
 		} catch (error) {
+			if (timeoutId) {
+				clearTimeout(timeoutId);
+			}
+			
+			// Для Long Polling таймауты - это нормально
+			if (error.name === 'AbortError' || (error.message && error.message.includes('timeout'))) {
+				throw new Error('timeout');
+			}
+			
 			// Логируем все ошибки
 			if (error instanceof TypeError && error.message.includes('fetch')) {
 				ErrorLogger.error('Ошибка сети при запросе к API', {
@@ -679,6 +700,89 @@ class API {
 			method: 'PUT',
 			body: data,
 		});
+	}
+
+	// Чат техподдержки
+	static async getSupportChats() {
+		return this.request('/support.php?action=chats');
+	}
+
+	static async getMyChat() {
+		return this.request('/support.php?action=my_chat');
+	}
+
+	static async getChatMessages(chatId, lastMessageId = 0, longPoll = false) {
+		const params = new URLSearchParams({
+			action: 'messages',
+			chat_id: chatId
+		});
+		
+		if (lastMessageId > 0) {
+			params.append('last_message_id', lastMessageId);
+		}
+		
+		if (longPoll) {
+			params.append('long_poll', '1');
+		}
+		
+		return this.request(`/support.php?${params.toString()}`);
+	}
+
+	static async sendSupportMessage(chatId, message, userId = null) {
+		return this.request('/support.php?action=send', {
+			method: 'POST',
+			body: {
+				chat_id: chatId,
+				user_id: userId,
+				message: message
+			}
+		});
+	}
+
+	static async uploadSupportFile(chatId, file, message = '', userId = null) {
+		const formData = new FormData();
+		formData.append('file', file);
+		formData.append('chat_id', chatId);
+		formData.append('user_id', userId || '');
+		formData.append('message', message);
+
+		return fetch(`${API_BASE}/support.php?action=upload`, {
+			method: 'POST',
+			body: formData
+		}).then(async (response) => {
+			const contentType = response.headers.get('content-type');
+			if (contentType && contentType.includes('application/json')) {
+				const data = await response.json();
+				if (!response.ok) {
+					throw new Error(data.error || `HTTP ${response.status}`);
+				}
+				return data;
+			} else {
+				const text = await response.text();
+				throw new Error(`Сервер вернул неверный формат ответа: ${text.substring(0, 100)}`);
+			}
+		});
+	}
+
+	static async getSupportUnreadCount(userId = null) {
+		const url = userId 
+			? `/support.php?action=unread_count&user_id=${userId}`
+			: '/support.php?action=unread_count';
+		return this.request(url);
+	}
+
+	static async markSupportMessagesRead(chatId, userId = null) {
+		return this.request('/support.php?action=mark_read', {
+			method: 'POST',
+			body: {
+				chat_id: chatId,
+				user_id: userId
+			}
+		});
+	}
+
+	static getSupportAttachmentUrl(attachmentId) {
+		return `${API_BASE}/support.php?action=attachment&id=${attachmentId}`;
 	}
 }
 

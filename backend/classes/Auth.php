@@ -146,7 +146,12 @@ class Auth {
 
 	public function isAdmin() {
 		$role = $this->getUserRole();
-		return $role === 'super_admin' || $role === 'admin';
+		return $role === 'super_admin' || $role === 'admin' || $role === 'support';
+	}
+
+	public function isSupport() {
+		$role = $this->getUserRole();
+		return $role === 'super_admin' || $role === 'support';
 	}
 
 	public function canAccessReferences() {
@@ -164,7 +169,7 @@ class Auth {
 		if ($role === null) {
 			return false;
 		}
-		return $this->isAdmin();
+		return $this->isAdmin() || $role === 'support';
 	}
 
 	public function canManageSuperAdmin() {

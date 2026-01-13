@@ -60,7 +60,7 @@ try {
 					"SELECT id, username, email, first_name, last_name, role, created_at, updated_at FROM users ORDER BY id ASC"
 				);
 			} else {
-				// Обычные админы не видят супер-админа
+				// Обычные админы не видят супер-админа, но видят поддержку
 				$users = $db->fetchAll(
 					"SELECT id, username, email, first_name, last_name, role, created_at, updated_at FROM users WHERE role != 'super_admin' ORDER BY id ASC"
 				);

@@ -118,6 +118,8 @@ class Assets {
 		self::enqueue_script('migrations', 'frontend/js/migrations.js', [], '1.0', true);
 		self::enqueue_script('users', 'frontend/js/users.js', [], '1.0', true);
 		self::enqueue_script('login', 'frontend/js/login.js', [], '1.0', true);
+		self::enqueue_script('support-chat', 'frontend/js/support-chat.js', ['api'], '1.0', true);
+		self::enqueue_script('chat-icon', 'frontend/js/chat-icon.js', ['api', 'support-chat'], '1.0', true);
 		self::enqueue_script('app', 'frontend/js/app.js', ['router'], '1.0', true);
 	}
 	
