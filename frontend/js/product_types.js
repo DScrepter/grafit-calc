@@ -44,8 +44,10 @@ const ProductTypesPage = {
 				<td>${type.description || '-'}</td>
 				<td>${params || '-'}</td>
 				<td>
-					<button class="btn btn-small btn-secondary" onclick="ProductTypesPage.edit(${type.id})">Редактировать</button>
-					<button class="btn btn-small btn-danger" onclick="ProductTypesPage.delete(${type.id})">Удалить</button>
+					<div class="action-buttons">
+						<button class="btn btn-small btn-primary" onclick="ProductTypesPage.edit(${type.id})" title="Редактировать">✏️</button>
+						<button class="btn btn-small btn-danger" onclick="ProductTypesPage.delete(${type.id})" title="Удалить">🗑</button>
+					</div>
 				</td>
 			`;
 			tbody.appendChild(row);

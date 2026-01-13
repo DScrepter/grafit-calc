@@ -43,8 +43,10 @@ const MaterialsPage = {
 				<td>${parseFloat(material.density).toFixed(4)}</td>
 				<td>${parseFloat(material.price).toFixed(2)}</td>
 				<td>
-					<button class="btn btn-small btn-secondary" onclick="MaterialsPage.edit(${material.id})">Редактировать</button>
-					<button class="btn btn-small btn-danger" onclick="MaterialsPage.delete(${material.id})">Удалить</button>
+					<div class="action-buttons">
+						<button class="btn btn-small btn-primary" onclick="MaterialsPage.edit(${material.id})" title="Редактировать">✏️</button>
+						<button class="btn btn-small btn-danger" onclick="MaterialsPage.delete(${material.id})" title="Удалить">🗑</button>
+					</div>
 				</td>
 			`;
 			tbody.appendChild(row);

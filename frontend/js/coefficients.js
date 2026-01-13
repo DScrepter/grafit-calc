@@ -43,8 +43,10 @@ const CoefficientsPage = {
 				<td>${parseFloat(coef.value).toFixed(2)}</td>
 				<td>${coef.description || '-'}</td>
 				<td>
-					<button class="btn btn-small btn-secondary" onclick="CoefficientsPage.edit(${coef.id})">Редактировать</button>
-					<button class="btn btn-small btn-danger" onclick="CoefficientsPage.delete(${coef.id})">Удалить</button>
+					<div class="action-buttons">
+						<button class="btn btn-small btn-primary" onclick="CoefficientsPage.edit(${coef.id})" title="Редактировать">✏️</button>
+						<button class="btn btn-small btn-danger" onclick="CoefficientsPage.delete(${coef.id})" title="Удалить">🗑</button>
+					</div>
 				</td>
 			`;
 			tbody.appendChild(row);

@@ -112,8 +112,10 @@ const UsersPage = {
 						<td>${roleName}</td>
 						<td>${createdDate}</td>
 						<td>
-							<button class="btn btn-small btn-primary" onclick="UsersPage.editUser(${user.id})">Редактировать</button>
-							${user.role !== 'super_admin' ? `<button class="btn btn-small btn-danger" onclick="UsersPage.deleteUser(${user.id}, '${user.username}')">Удалить</button>` : ''}
+							<div class="action-buttons">
+								<button class="btn btn-small btn-primary" onclick="UsersPage.editUser(${user.id})" title="Редактировать">✏️</button>
+								${user.role !== 'super_admin' ? `<button class="btn btn-small btn-danger" onclick="UsersPage.deleteUser(${user.id}, '${user.username}')" title="Удалить">🗑</button>` : ''}
+							</div>
 						</td>
 					</tr>
 				`;

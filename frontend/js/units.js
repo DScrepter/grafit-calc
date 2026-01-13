@@ -39,8 +39,10 @@ const UnitsPage = {
 				<td>${unit.id}</td>
 				<td>${unit.name}</td>
 				<td>
-					<button class="btn btn-small btn-secondary" onclick="UnitsPage.edit(${unit.id})">Редактировать</button>
-					<button class="btn btn-small btn-danger" onclick="UnitsPage.delete(${unit.id})">Удалить</button>
+					<div class="action-buttons">
+						<button class="btn btn-small btn-primary" onclick="UnitsPage.edit(${unit.id})" title="Редактировать">✏️</button>
+						<button class="btn btn-small btn-danger" onclick="UnitsPage.delete(${unit.id})" title="Удалить">🗑</button>
+					</div>
 				</td>
 			`;
 			tbody.appendChild(row);

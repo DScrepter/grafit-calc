@@ -43,8 +43,10 @@ const OperationsPage = {
 				<td>${operation.unit_name || '-'}</td>
 				<td>${parseFloat(operation.cost).toFixed(2)}</td>
 				<td>
-					<button class="btn btn-small btn-secondary" onclick="OperationsPage.edit(${operation.id})">Редактировать</button>
-					<button class="btn btn-small btn-danger" onclick="OperationsPage.delete(${operation.id})">Удалить</button>
+					<div class="action-buttons">
+						<button class="btn btn-small btn-primary" onclick="OperationsPage.edit(${operation.id})" title="Редактировать">✏️</button>
+						<button class="btn btn-small btn-danger" onclick="OperationsPage.delete(${operation.id})" title="Удалить">🗑</button>
+					</div>
 				</td>
 			`;
 			tbody.appendChild(row);
