@@ -8,45 +8,36 @@ class PDFGenerator {
 	private $pdf;
 	
 	public function __construct() {
-		// Пытаемся подключить autoload если он еще не подключен
-		if (!class_exists('TCPDF')) {
-			$autoloadPaths = [
-				__DIR__ . '/../vendor/autoload.php',
-				__DIR__ . '/../../vendor/autoload.php',
-				__DIR__ . '/../../backend/vendor/autoload.php',
-			];
-			
-			foreach ($autoloadPaths as $autoloadPath) {
-				if (file_exists($autoloadPath)) {
-					require_once $autoloadPath;
-					break;
-				}
-			}
-		}
-		
-		// Проверяем наличие TCPDF после загрузки autoload
+		// Проверяем наличие TCPDF
 		if (!class_exists('TCPDF')) {
 			// Пытаемся подключить TCPDF из разных возможных мест
+			// Сначала проверяем vendor (если есть локально)
 			$possiblePaths = [
 				__DIR__ . '/../vendor/tecnickcom/tcpdf/tcpdf.php',
 				__DIR__ . '/../../vendor/tecnickcom/tcpdf/tcpdf.php',
 				__DIR__ . '/../../backend/vendor/tecnickcom/tcpdf/tcpdf.php',
+				__DIR__ . '/../../../vendor/tecnickcom/tcpdf/tcpdf.php',
+				// Потом проверяем возможные места на сервере
 				__DIR__ . '/../../tcpdf/tcpdf.php',
 				__DIR__ . '/../tcpdf/tcpdf.php',
 				__DIR__ . '/tcpdf/tcpdf.php',
+				'/usr/share/php/tcpdf/tcpdf.php',
+				'/var/www/tcpdf/tcpdf.php',
 			];
 			
 			$found = false;
 			foreach ($possiblePaths as $path) {
-				if (file_exists($path)) {
-					require_once $path;
+				$realPath = realpath($path);
+				if ($realPath && file_exists($realPath)) {
+					require_once $realPath;
 					$found = true;
 					break;
 				}
 			}
 			
 			if (!$found || !class_exists('TCPDF')) {
-				throw new Exception('TCPDF не найден. Установите TCPDF: composer require tecnickcom/tcpdf или скачайте с https://tcpdf.org/');
+				// TCPDF не найден - это нормально, будем использовать клиентскую генерацию
+				throw new Exception('TCPDF не найден. Будет использована клиентская генерация PDF.');
 			}
 		}
 		

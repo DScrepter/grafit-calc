@@ -360,9 +360,36 @@ rm /tmp/dump_latest.sql
 6. Убедитесь, что выбрана правильная кодировка (обычно `utf8mb4_unicode_ci`)
 7. Нажмите **Вперед** и дождитесь завершения импорта
 
+## Установка composer зависимостей
+
+После первого деплоя нужно установить зависимости через composer:
+
+```bash
+# Подключаемся к серверу
+ssh user@your-server.com
+
+# Переходим в директорию проекта
+cd /var/www/cost-calc  # или ваш DEPLOY_PATH
+
+# Устанавливаем зависимости в backend
+cd backend
+composer install --no-dev --optimize-autoloader
+
+# Или используйте скрипт из проекта
+cd ..
+bash scripts/install-composer-deps.sh
+```
+
+**Важно:** Без установки зависимостей PDF генерация на сервере не будет работать. TCPDF требуется для экспорта в PDF.
+
+Если composer не установлен на сервере:
+1. Установите composer: https://getcomposer.org/download/
+2. Или скачайте composer.phar: `curl -sS https://getcomposer.org/installer | php`
+3. Скрипт `install-composer-deps.sh` автоматически найдёт composer.phar
+
 ## Настройка конфигурации на сервере
 
-После первого деплоя нужно создать файл конфигурации на сервере:
+После установки зависимостей нужно создать файл конфигурации на сервере:
 
 ```bash
 # Подключаемся к серверу
@@ -461,6 +488,14 @@ cd /var/www/cost-calc
 
 # Обновляем код
 git pull origin main
+
+# Устанавливаем composer зависимости
+cd backend
+composer install --no-dev --optimize-autoloader
+
+# Или используйте скрипт из проекта
+cd ..
+bash scripts/install-composer-deps.sh
 
 # Устанавливаем права доступа
 find . -type f -exec chmod 644 {} \;

@@ -38,13 +38,14 @@ jobs:
               --exclude '.git' \
               --exclude '.github' \
               --exclude 'node_modules' \
-              --exclude 'vendor' \
               --exclude 'logs' \
               --exclude '*.log' \
               --exclude 'config/config.php' \
               --exclude 'backend/config/config.php' \
               --exclude '.DS_Store' \
               --exclude 'Thumbs.db' \
+              --no-owner \
+              --no-group \
               -e "ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o LogLevel=ERROR" \
               ./ ${DEPLOY_USER}@${DEPLOY_HOST}:${DEPLOY_PATH}/
           }
@@ -78,11 +79,11 @@ jobs:
           echo "Copying files to server..."
           rsync_cmd
           
-          # Устанавливаем права доступа
+          # Устанавливаем права доступа только для новых/измененных файлов и скриптов
           echo "Setting file permissions..."
           ssh_cmd "cd ${DEPLOY_PATH} && \
-            find . -type f -exec chmod 644 {} \; && \
-            find . -type d -exec chmod 755 {} \; && \
+            find . -type f ! -perm 644 -exec chmod 644 {} \; && \
+            find . -type d ! -perm 755 -exec chmod 755 {} \; && \
             find . -name '*.sh' -exec chmod 755 {} \; && \
             ([ -d 'logs' ] && chmod 755 logs || true) && \
             echo 'Deployment completed successfully!'"

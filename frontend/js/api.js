@@ -281,23 +281,25 @@ class API {
 			// Запрашиваем PDF напрямую с сервера
 			const response = await fetch(`${API_BASE}/export.php?id=${id}&format=pdf`);
 
+			// Проверяем content-type ПЕРЕД чтением body
+			const contentType = response.headers.get('content-type') || '';
+
 			if (!response.ok) {
-				// Если сервер вернул JSON (TCPDF не установлен), используем клиентскую генерацию
-				const contentType = response.headers.get('content-type');
-				if (contentType && contentType.includes('application/json')) {
+				// Если сервер вернул JSON с ошибкой, используем клиентскую генерацию
+				if (contentType.includes('application/json')) {
 					const data = await response.json();
 					if (data && data.calculation) {
 						this.generatePDFFromData(data, data.calculation.product_name || 'calculation');
 						return;
 					}
 				}
+				// Если не JSON, читаем текст ошибки только один раз
 				const errorText = await response.text();
 				throw new Error('Ошибка получения PDF: ' + errorText);
 			}
 
 			// Если сервер вернул PDF, скачиваем его
-			const contentType = response.headers.get('content-type');
-			if (contentType && contentType.includes('application/pdf')) {
+			if (contentType.includes('application/pdf')) {
 				const blob = await response.blob();
 				const url = window.URL.createObjectURL(blob);
 				const a = document.createElement('a');
@@ -321,14 +323,18 @@ class API {
 				a.click();
 				document.body.removeChild(a);
 				window.URL.revokeObjectURL(url);
-			} else {
-				// Если вернулся JSON, используем клиентскую генерацию
+			} else if (contentType.includes('application/json')) {
+				// Если вернулся JSON (TCPDF не установлен), используем клиентскую генерацию
 				const data = await response.json();
 				if (data && data.calculation) {
 					this.generatePDFFromData(data, data.calculation.product_name || 'calculation');
 				} else {
 					throw new Error('Неожиданный формат ответа от сервера');
 				}
+			} else {
+				// Неизвестный формат
+				const errorText = await response.text();
+				throw new Error('Неожиданный формат ответа от сервера: ' + errorText);
 			}
 		} catch (error) {
 			console.error('Export error:', error);
