@@ -1,60 +1,60 @@
 name: Deploy to Test Server
 
 on:
-	push:
-		branches:
-			- main
-			- master
-	workflow_dispatch:
+  push:
+    branches:
+      - main
+      - master
+  workflow_dispatch:
 
 jobs:
-	deploy:
-		runs-on: ubuntu-latest
-		
-		steps:
-			- name: Checkout code
-				uses: actions/checkout@v4
-			
-			- name: Setup SSH
-				run: |
-					mkdir -p ~/.ssh
-					echo "${{ secrets.DEPLOY_SSH_KEY }}" > ~/.ssh/deploy_key
-					chmod 600 ~/.ssh/deploy_key
-					ssh-keyscan -H ${{ secrets.DEPLOY_HOST }} >> ~/.ssh/known_hosts
-			
-			- name: Deploy to server
-				env:
-					DEPLOY_HOST: ${{ secrets.DEPLOY_HOST }}
-					DEPLOY_USER: ${{ secrets.DEPLOY_USER }}
-					DEPLOY_PATH: ${{ secrets.DEPLOY_PATH }}
-				run: |
-					# Создаем директорию если не существует
-					ssh -i ~/.ssh/deploy_key -o StrictHostKeyChecking=no ${DEPLOY_USER}@${DEPLOY_HOST} "mkdir -p ${DEPLOY_PATH}"
-					
-					# Копируем файлы на сервер (исключая .git, node_modules и т.д.)
-					rsync -avz --delete \
-						--exclude '.git' \
-						--exclude '.github' \
-						--exclude 'node_modules' \
-						--exclude 'vendor' \
-						--exclude 'logs' \
-						--exclude '*.log' \
-						--exclude 'config/config.php' \
-						--exclude 'backend/config/config.php' \
-						--exclude '.DS_Store' \
-						--exclude 'Thumbs.db' \
-						-e "ssh -i ~/.ssh/deploy_key -o StrictHostKeyChecking=no" \
-						./ ${DEPLOY_USER}@${DEPLOY_HOST}:${DEPLOY_PATH}/
-					
-					# Устанавливаем права доступа
-					ssh -i ~/.ssh/deploy_key -o StrictHostKeyChecking=no ${DEPLOY_USER}@${DEPLOY_HOST} "cd ${DEPLOY_PATH} && \
-						find . -type f -exec chmod 644 {} \; && \
-						find . -type d -exec chmod 755 {} \; && \
-						find . -name '*.sh' -exec chmod 755 {} \; && \
-						([ -d 'logs' ] && chmod 755 logs || true) && \
-						echo 'Deployment completed successfully!'"
-			
-			- name: Cleanup
-				if: always()
-				run: |
-					rm -f ~/.ssh/deploy_key
+  deploy:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Setup SSH
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.DEPLOY_SSH_KEY }}" > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+          ssh-keyscan -H ${{ secrets.DEPLOY_HOST }} >> ~/.ssh/known_hosts
+      
+      - name: Deploy to server
+        env:
+          DEPLOY_HOST: ${{ secrets.DEPLOY_HOST }}
+          DEPLOY_USER: ${{ secrets.DEPLOY_USER }}
+          DEPLOY_PATH: ${{ secrets.DEPLOY_PATH }}
+        run: |
+          # Создаем директорию если не существует
+          ssh -i ~/.ssh/deploy_key -o StrictHostKeyChecking=no ${DEPLOY_USER}@${DEPLOY_HOST} "mkdir -p ${DEPLOY_PATH}"
+          
+          # Копируем файлы на сервер (исключая .git, node_modules и т.д.)
+          rsync -avz --delete \
+            --exclude '.git' \
+            --exclude '.github' \
+            --exclude 'node_modules' \
+            --exclude 'vendor' \
+            --exclude 'logs' \
+            --exclude '*.log' \
+            --exclude 'config/config.php' \
+            --exclude 'backend/config/config.php' \
+            --exclude '.DS_Store' \
+            --exclude 'Thumbs.db' \
+            -e "ssh -i ~/.ssh/deploy_key -o StrictHostKeyChecking=no" \
+            ./ ${DEPLOY_USER}@${DEPLOY_HOST}:${DEPLOY_PATH}/
+          
+          # Устанавливаем права доступа
+          ssh -i ~/.ssh/deploy_key -o StrictHostKeyChecking=no ${DEPLOY_USER}@${DEPLOY_HOST} "cd ${DEPLOY_PATH} && \
+            find . -type f -exec chmod 644 {} \; && \
+            find . -type d -exec chmod 755 {} \; && \
+            find . -name '*.sh' -exec chmod 755 {} \; && \
+            ([ -d 'logs' ] && chmod 755 logs || true) && \
+            echo 'Deployment completed successfully!'"
+      
+      - name: Cleanup
+        if: always()
+        run: |
+          rm -f ~/.ssh/deploy_key
