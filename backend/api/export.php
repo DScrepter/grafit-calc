@@ -4,6 +4,7 @@
  */
 
 require_once __DIR__ . '/error_handler.php';
+require_once __DIR__ . '/../vendor/autoload.php';
 require_once __DIR__ . '/../classes/Auth.php';
 require_once __DIR__ . '/../config/database.php';
 require_once __DIR__ . '/../classes/Logger.php';

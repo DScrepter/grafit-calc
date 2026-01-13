@@ -8,13 +8,29 @@ class PDFGenerator {
 	private $pdf;
 	
 	public function __construct() {
-		// Проверяем наличие TCPDF
+		// Пытаемся подключить autoload если он еще не подключен
+		if (!class_exists('TCPDF')) {
+			$autoloadPaths = [
+				__DIR__ . '/../vendor/autoload.php',
+				__DIR__ . '/../../vendor/autoload.php',
+				__DIR__ . '/../../backend/vendor/autoload.php',
+			];
+			
+			foreach ($autoloadPaths as $autoloadPath) {
+				if (file_exists($autoloadPath)) {
+					require_once $autoloadPath;
+					break;
+				}
+			}
+		}
+		
+		// Проверяем наличие TCPDF после загрузки autoload
 		if (!class_exists('TCPDF')) {
 			// Пытаемся подключить TCPDF из разных возможных мест
 			$possiblePaths = [
+				__DIR__ . '/../vendor/tecnickcom/tcpdf/tcpdf.php',
 				__DIR__ . '/../../vendor/tecnickcom/tcpdf/tcpdf.php',
 				__DIR__ . '/../../backend/vendor/tecnickcom/tcpdf/tcpdf.php',
-				__DIR__ . '/../vendor/tecnickcom/tcpdf/tcpdf.php',
 				__DIR__ . '/../../tcpdf/tcpdf.php',
 				__DIR__ . '/../tcpdf/tcpdf.php',
 				__DIR__ . '/tcpdf/tcpdf.php',
