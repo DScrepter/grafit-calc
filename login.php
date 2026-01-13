@@ -1,7 +1,6 @@
 <?php
 // Проверяем, авторизован ли пользователь
 require_once __DIR__ . '/backend/classes/Auth.php';
-require_once __DIR__ . '/backend/classes/Assets.php';
 
 $auth = new Auth();
 
@@ -15,10 +14,6 @@ if ($auth->isLoggedIn()) {
 	}
 	exit;
 }
-
-// Инициализация Assets
-Assets::init('');
-Assets::enqueue_login_assets();
 
 // Переменные для шаблонов
 $page_title = 'Вход - Калькулятор себестоимости';
@@ -37,7 +32,15 @@ require __DIR__ . '/templates/header.php';
 				</div>
 				<div class="form-group">
 					<label for="password">Пароль</label>
-					<input type="password" id="password" name="password" required>
+					<div class="password-input-wrapper">
+						<input type="password" id="password" name="password" required>
+						<button type="button" class="toggle-password" data-target="password" aria-label="Показать пароль">
+							<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+								<path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
+								<circle cx="12" cy="12" r="3"></circle>
+							</svg>
+						</button>
+					</div>
 				</div>
 				<button type="submit" class="btn btn-primary">Войти</button>
 				<div class="form-footer">
@@ -47,7 +50,7 @@ require __DIR__ . '/templates/header.php';
 			<form id="registerForm" style="display: none;">
 				<div class="form-group">
 					<label for="reg_username">Имя пользователя</label>
-					<input type="text" id="reg_username" name="username" required>
+					<input type="text" id="reg_username" name="username" pattern="[a-zA-Z0-9_]+" title="Только латинские буквы, цифры и подчеркивание" required>
 				</div>
 				<div class="form-group">
 					<label for="reg_email">Email</label>
@@ -55,7 +58,27 @@ require __DIR__ . '/templates/header.php';
 				</div>
 				<div class="form-group">
 					<label for="reg_password">Пароль</label>
-					<input type="password" id="reg_password" name="password" required>
+					<div class="password-input-wrapper">
+						<input type="password" id="reg_password" name="password" required>
+						<button type="button" class="toggle-password" data-target="reg_password" aria-label="Показать пароль">
+							<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+								<path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
+								<circle cx="12" cy="12" r="3"></circle>
+							</svg>
+						</button>
+					</div>
+				</div>
+				<div class="form-group">
+					<label for="reg_password_confirm">Подтверждение пароля</label>
+					<div class="password-input-wrapper">
+						<input type="password" id="reg_password_confirm" name="password_confirm" required>
+						<button type="button" class="toggle-password" data-target="reg_password_confirm" aria-label="Показать пароль">
+							<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+								<path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
+								<circle cx="12" cy="12" r="3"></circle>
+							</svg>
+						</button>
+					</div>
 				</div>
 				<button type="submit" class="btn btn-primary">Зарегистрироваться</button>
 				<div class="form-footer">

@@ -1,7 +1,6 @@
 <?php
 // Страница профиля пользователя (для гостей)
 require_once __DIR__ . '/backend/classes/Auth.php';
-require_once __DIR__ . '/backend/classes/Assets.php';
 
 $auth = new Auth();
 
@@ -19,10 +18,6 @@ $roleNames = [
 	'guest' => 'Гость'
 ];
 $roleName = $roleNames[$userRole] ?? $userRole;
-
-// Инициализация Assets
-Assets::init('');
-Assets::enqueue_profile_assets();
 
 // Переменные для шаблонов
 $page_title = 'Профиль - Калькулятор себестоимости';
@@ -143,9 +138,6 @@ require __DIR__ . '/templates/header.php';
 			// Для гостя автоматически показываем форму редактирования
 			if (isGuest) {
 				showEditForm();
-				// Скрываем кнопку редактирования для гостей, так как форма открыта автоматически
-				const toggleBtn = document.getElementById('toggleEditBtn');
-				if (toggleBtn) toggleBtn.style.display = 'none';
 			}
 
 			// Обработчик клика на имя пользователя
@@ -215,13 +207,9 @@ require __DIR__ . '/templates/header.php';
 			document.getElementById('profileView').style.display = 'block';
 			document.getElementById('profileEdit').style.display = 'none';
 			const toggleBtn = document.getElementById('toggleEditBtn');
-			// Кнопка всегда видна в режиме просмотра (кроме гостей, у которых форма открыта автоматически)
+			// Кнопка всегда видна в режиме просмотра
 			if (toggleBtn) {
-				if (isGuest) {
-					toggleBtn.style.display = 'none';
-				} else {
-					toggleBtn.style.display = 'inline-block';
-				}
+				toggleBtn.style.display = 'inline-block';
 			}
 		}
 

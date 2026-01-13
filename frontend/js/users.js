@@ -137,6 +137,24 @@ const UsersPage = {
 			const form = document.getElementById('userForm');
 			const superAdminOption = document.getElementById('superAdminOption');
 			const warning = document.getElementById('superAdminWarning');
+			
+			// Получаем текущего пользователя из роутера или через API
+			let currentUser = window.router?.currentUser || null;
+			if (!currentUser) {
+				try {
+					const authData = await API.checkAuth();
+					if (authData.logged_in && authData.user) {
+						currentUser = authData.user;
+						// Сохраняем в роутер для будущих использований
+						if (window.router) {
+							window.router.currentUser = currentUser;
+						}
+					}
+				} catch (error) {
+					console.error('Error getting current user:', error);
+				}
+			}
+			
 			const isSuperAdmin = currentUser && currentUser.role === 'super_admin';
 			const isEditingSuperAdmin = user.role === 'super_admin';
 
@@ -174,7 +192,11 @@ const UsersPage = {
 				form.querySelectorAll('input, select').forEach(el => el.disabled = false);
 			}
 
-			modal.style.display = 'block';
+			// Перемещаем модальное окно в body для правильного позиционирования
+			if (modal.parentElement !== document.body) {
+				document.body.appendChild(modal);
+			}
+			modal.style.display = 'flex';
 		} catch (error) {
 			alert('Ошибка загрузки пользователя: ' + error.message);
 		}
@@ -190,6 +212,23 @@ const UsersPage = {
 			last_name: document.getElementById('userLastName').value.trim() || null,
 			role: document.getElementById('userRole').value
 		};
+
+		// Получаем текущего пользователя из роутера или через API
+		let currentUser = window.router?.currentUser || null;
+		if (!currentUser) {
+			try {
+				const authData = await API.checkAuth();
+				if (authData.logged_in && authData.user) {
+					currentUser = authData.user;
+					// Сохраняем в роутер для будущих использований
+					if (window.router) {
+						window.router.currentUser = currentUser;
+					}
+				}
+			} catch (error) {
+				console.error('Error getting current user:', error);
+			}
+		}
 
 		// Проверка на передачу роли супер-админа
 		if (currentUser && currentUser.role === 'super_admin' && formData.role === 'super_admin' && formData.id !== currentUser.id) {
@@ -227,9 +266,13 @@ const UsersPage = {
 
 	closeModal() {
 		const modal = document.getElementById('userModal');
-		modal.style.display = 'none';
+		if (modal) {
+			modal.style.display = 'none';
+		}
 		const form = document.getElementById('userForm');
-		form.reset();
+		if (form) {
+			form.reset();
+		}
 	}
 };
 

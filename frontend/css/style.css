@@ -64,6 +64,45 @@ body {
 	border-color: #667eea;
 }
 
+/* Контейнер для поля пароля с кнопкой показа */
+.password-input-wrapper {
+	position: relative;
+}
+
+.password-input-wrapper input {
+	padding-right: 40px;
+}
+
+.password-input-wrapper .toggle-password {
+	position: absolute;
+	right: 10px;
+	top: 50%;
+	transform: translateY(-50%);
+	background: none;
+	border: none;
+	cursor: pointer;
+	padding: 5px;
+	color: #666;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	transition: color 0.2s;
+}
+
+.password-input-wrapper .toggle-password:hover {
+	color: #667eea;
+}
+
+.password-input-wrapper .toggle-password:focus {
+	outline: none;
+	color: #667eea;
+}
+
+.password-input-wrapper .toggle-password svg {
+	width: 20px;
+	height: 20px;
+}
+
 .form-footer {
 	margin-top: 15px;
 	text-align: center;
@@ -482,4 +521,78 @@ body {
 
 .hidden {
 	display: none;
+}
+
+/* Главная страница */
+.home-page {
+	min-height: 100vh;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+	padding: 20px;
+}
+
+.home-container {
+	background: white;
+	border-radius: 10px;
+	padding: 40px;
+	max-width: 800px;
+	box-shadow: 0 10px 40px rgba(0,0,0,0.2);
+}
+
+.home-container h1 {
+	color: #333;
+	margin-bottom: 20px;
+	font-size: 2.5em;
+}
+
+.home-container p {
+	color: #666;
+	line-height: 1.6;
+	margin-bottom: 15px;
+	font-size: 1.1em;
+}
+
+.home-container .features {
+	margin: 30px 0;
+}
+
+.home-container .features h2 {
+	color: #333;
+	margin-bottom: 15px;
+	font-size: 1.5em;
+}
+
+.home-container .features ul {
+	list-style: none;
+	padding: 0;
+}
+
+.home-container .features li {
+	padding: 10px 0;
+	padding-left: 30px;
+	position: relative;
+	color: #555;
+}
+
+.home-container .features li:before {
+	content: "✓";
+	position: absolute;
+	left: 0;
+	color: #667eea;
+	font-weight: bold;
+	font-size: 1.2em;
+}
+
+.home-container .btn-container {
+	text-align: center;
+	margin-top: 40px;
+}
+
+.home-container .btn-primary {
+	display: inline-block;
+	padding: 15px 40px;
+	font-size: 1.2em;
+	text-decoration: none;
 }

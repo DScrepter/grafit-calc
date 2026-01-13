@@ -61,6 +61,11 @@ class Auth {
 	}
 
 	public function register($username, $email, $password, $first_name = null, $last_name = null) {
+		// Валидация имени пользователя (только латиница)
+		if (!preg_match('/^[a-zA-Z0-9_]+$/', $username)) {
+			return false; // Некорректное имя пользователя
+		}
+
 		// Проверяем, существует ли пользователь
 		$existing = $this->db->fetchOne(
 			"SELECT id FROM users WHERE username = ? OR email = ?",

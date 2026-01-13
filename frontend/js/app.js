@@ -32,6 +32,12 @@ document.addEventListener('DOMContentLoaded', async () => {
 		router.register('users', UsersPage.load.bind(UsersPage), { requiresAdmin: true });
 	}
 
+	// Если это не SPA страница (нет workspaceContent), не инициализируем роутер
+	const workspaceContent = document.getElementById('workspaceContent');
+	if (!workspaceContent) {
+		return;
+	}
+
 	// Инициализируем роутер (он сам проверит авторизацию)
 	await router.checkAuth();
 

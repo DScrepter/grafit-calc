@@ -51,6 +51,13 @@ try {
 				exit;
 			}
 
+			// Валидация имени пользователя (только латиница)
+			if (!preg_match('/^[a-zA-Z0-9_]+$/', $username)) {
+				http_response_code(400);
+				echo json_encode(['error' => 'Имя пользователя может содержать только латинские буквы, цифры и подчеркивание']);
+				exit;
+			}
+
 			if ($auth->register($username, $email, $password, $first_name, $last_name)) {
 				echo json_encode(['success' => true, 'message' => 'Регистрация успешна']);
 			} else {

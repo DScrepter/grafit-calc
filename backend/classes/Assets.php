@@ -6,14 +6,23 @@ class Assets {
 	private static $styles = [];
 	private static $scripts = [];
 	private static $base_path = '';
+	private static $initialized = false;
 	
 	/**
-	 * Инициализация - определяем базовый путь
+	 * Инициализация - определяем базовый путь и автоматически подключаем все ассеты
 	 * @param string $base_path Базовый путь к assets (устаревший параметр, оставлен для совместимости)
 	 */
 	public static function init($base_path = '') {
+		// Защита от повторной инициализации
+		if (self::$initialized) {
+			return;
+		}
+		
 		// Всегда используем корневой путь, так как теперь все страницы через SPA
 		self::$base_path = '';
+		// Автоматически подключаем все ассеты
+		self::enqueue_common_assets();
+		self::$initialized = true;
 	}
 	
 	/**
@@ -87,18 +96,17 @@ class Assets {
 	
 	/**
 	 * Подключить общие стили и скрипты (используются везде)
+	 * Теперь включает все скрипты приложения для упрощения управления
 	 */
 	public static function enqueue_common_assets() {
+		// Стили
 		self::enqueue_style('main-style', 'frontend/css/style.css');
+		
+		// Базовые скрипты
 		self::enqueue_script('api', 'frontend/js/api.js', [], '1.0', true);
 		self::enqueue_script('error-handler', 'frontend/js/error-handler.js', [], '1.0', true);
-	}
-	
-	/**
-	 * Подключить скрипты и стили для калькулятора (теперь используется для всех страниц SPA)
-	 */
-	public static function enqueue_calculator_assets() {
-		self::enqueue_common_assets();
+		
+		// Специфичные скрипты приложения
 		self::enqueue_script('router', 'frontend/js/router.js', ['api'], '1.0', true);
 		self::enqueue_script('calculator', 'frontend/js/calculator.js', [], '1.0', true);
 		self::enqueue_script('materials', 'frontend/js/materials.js', [], '1.0', true);
@@ -107,21 +115,30 @@ class Assets {
 		self::enqueue_script('product-types', 'frontend/js/product_types.js', [], '1.0', true);
 		self::enqueue_script('coefficients', 'frontend/js/coefficients.js', [], '1.0', true);
 		self::enqueue_script('users', 'frontend/js/users.js', [], '1.0', true);
+		self::enqueue_script('login', 'frontend/js/login.js', [], '1.0', true);
 		self::enqueue_script('app', 'frontend/js/app.js', ['router'], '1.0', true);
+	}
+	
+	/**
+	 * Подключить скрипты и стили для калькулятора
+	 * @deprecated Используйте enqueue_common_assets() - теперь все скрипты подключены везде
+	 */
+	public static function enqueue_calculator_assets() {
+		self::enqueue_common_assets();
 	}
 	
 	/**
 	 * Подключить скрипты и стили для reference страниц
 	 * @param string $page Название страницы (materials, operations, units, product_types, coefficients)
-	 * @deprecated Используйте enqueue_calculator_assets() - теперь все страницы через SPA
+	 * @deprecated Используйте enqueue_common_assets() - теперь все скрипты подключены везде
 	 */
 	public static function enqueue_reference_assets($page) {
-		// Все reference страницы теперь используют те же assets что и calculator
-		self::enqueue_calculator_assets();
+		self::enqueue_common_assets();
 	}
 	
 	/**
 	 * Подключить скрипты и стили для страницы профиля
+	 * @deprecated Используйте enqueue_common_assets() - теперь все скрипты подключены везде
 	 */
 	public static function enqueue_profile_assets() {
 		self::enqueue_common_assets();
@@ -129,14 +146,15 @@ class Assets {
 	
 	/**
 	 * Подключить скрипты и стили для страницы входа
+	 * @deprecated Используйте enqueue_common_assets() - теперь все скрипты подключены везде
 	 */
 	public static function enqueue_login_assets() {
 		self::enqueue_common_assets();
-		self::enqueue_script('login', 'frontend/js/login.js', [], '1.0', true);
 	}
 	
 	/**
 	 * Подключить скрипты и стили для главной страницы
+	 * @deprecated Используйте enqueue_common_assets() - теперь все скрипты подключены везде
 	 */
 	public static function enqueue_home_assets() {
 		self::enqueue_common_assets();

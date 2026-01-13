@@ -26,7 +26,14 @@ class Router {
 		});
 
 		// Обработка кликов по ссылкам (только для внутренних ссылок приложения)
+		// Перехватываем только если есть workspaceContent (SPA страница)
 		document.addEventListener('click', (e) => {
+			const workspaceContent = document.getElementById('workspaceContent');
+			if (!workspaceContent) {
+				// На страницах без workspaceContent (profile, login) не перехватываем ссылки
+				return;
+			}
+
 			const link = e.target.closest('a[href^="/"]');
 			if (link && !link.hasAttribute('data-external')) {
 				const href = link.getAttribute('href');
@@ -60,13 +67,16 @@ class Router {
 			return;
 		}
 
+		// Если это главная страница и нет элемента workspaceContent, значит это не SPA страница
+		if (path === '/' && !document.getElementById('workspaceContent')) {
+			return;
+		}
+
 		const searchParams = new URLSearchParams(window.location.search);
 		const page = searchParams.get('page') || this.getPageFromPath(path);
 
-		// Проверяем авторизацию
-		if (!this.currentUser) {
-			await this.checkAuth();
-		}
+		// Всегда проверяем авторизацию при обработке маршрута (на случай если пользователь только что вошел)
+		await this.checkAuth();
 
 		// Проверяем права доступа
 		if (this.requiresAuth(page) && !this.currentUser) {
@@ -139,25 +149,11 @@ class Router {
 	}
 
 	updateNavigation() {
+		// Навигация управляется серверной стороной через sidebar.php
+		// Здесь только обновляем активные пункты меню
 		if (!this.currentUser) return;
-
-		const referencesGroup = document.getElementById('referencesGroup');
-		const calculatorsGroup = document.getElementById('calculatorsGroup');
-		const adminGroup = document.getElementById('adminGroup');
-
-		if (this.currentUser.role === 'guest') {
-			if (referencesGroup) referencesGroup.style.display = 'none';
-			if (calculatorsGroup) calculatorsGroup.style.display = 'none';
-		} else {
-			if (referencesGroup) referencesGroup.style.display = 'block';
-			if (calculatorsGroup) calculatorsGroup.style.display = 'block';
-		}
-
-		if ((this.currentUser.role === 'super_admin' || this.currentUser.role === 'admin') && adminGroup) {
-			adminGroup.style.display = 'block';
-		} else if (adminGroup) {
-			adminGroup.style.display = 'none';
-		}
+		
+		// Обновление активных пунктов меню происходит в loadPage()
 	}
 
 	async loadPage(pageId) {

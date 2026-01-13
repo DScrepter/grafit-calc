@@ -4,9 +4,15 @@
  * 
  * Использование:
  * $page_title - заголовок страницы
- * require_once __DIR__ . '/backend/classes/Assets.php';
- * Assets::init(''); // или '../' для reference/
+ * 
+ * Assets автоматически подключается и инициализируется здесь
  */
+// Подключаем и инициализируем Assets, если еще не подключен
+if (!class_exists('Assets')) {
+	require_once __DIR__ . '/../backend/classes/Assets.php';
+	Assets::init('');
+}
+
 if (!isset($page_title)) {
 	$page_title = 'Калькулятор себестоимости';
 }

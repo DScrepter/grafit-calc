@@ -1,7 +1,6 @@
 <?php
 // Проверка авторизации
 require_once __DIR__ . '/backend/classes/Auth.php';
-require_once __DIR__ . '/backend/classes/Assets.php';
 
 $auth = new Auth();
 
@@ -19,10 +18,6 @@ if (!$auth->canAccessReferences()) {
 $username = $auth->getUsername();
 $userRole = $auth->getUserRole();
 $userData = $auth->getUserData();
-
-// Инициализация Assets
-Assets::init('');
-Assets::enqueue_calculator_assets();
 
 // Переменные для шаблонов
 $page_title = 'Калькулятор себестоимости изделий графитового производства';

@@ -15,8 +15,7 @@
 			<h2>Навигация</h2>
 		</div>
 		<ul class="nav-tree" id="navTree">
-			<?php if ($sidebar_type === 'calculator' || $sidebar_type === 'reference'): ?>
-				<?php if ($auth->canAccessReferences()): ?>
+			<?php if ($auth->canAccessReferences()): ?>
 				<li class="nav-group" id="referencesGroup">
 					<span class="nav-group-title">Справочники</span>
 					<ul class="nav-items">
@@ -30,26 +29,24 @@
 				<li class="nav-group" id="calculatorsGroup">
 					<span class="nav-group-title">Калькуляторы</span>
 					<ul class="nav-items">
-						<li data-page="calculator" class="active"><a href="/calculator">Основной калькулятор</a></li>
+						<li data-page="calculator" <?php echo ($sidebar_type === 'calculator') ? 'class="active"' : ''; ?>><a href="/calculator">Основной калькулятор</a></li>
 					</ul>
 				</li>
-				<?php endif; ?>
-				<?php if ($auth->canManageUsers()): ?>
+			<?php endif; ?>
+			<?php if ($auth->canManageUsers()): ?>
 				<li class="nav-group" id="adminGroup">
 					<span class="nav-group-title">Администрирование</span>
 					<ul class="nav-items">
 						<li data-page="users"><a href="/calculator?page=users">Пользователи</a></li>
 					</ul>
 				</li>
-				<?php endif; ?>
-			<?php elseif ($sidebar_type === 'profile'): ?>
-				<li class="nav-group">
-					<span class="nav-group-title">Профиль</span>
-					<ul class="nav-items">
-						<li class="active">Мой профиль</li>
-					</ul>
-				</li>
 			<?php endif; ?>
+			<li class="nav-group">
+				<span class="nav-group-title">Профиль</span>
+				<ul class="nav-items">
+					<li <?php echo ($sidebar_type === 'profile') ? 'class="active"' : ''; ?>><a href="/profile">Мой профиль</a></li>
+				</ul>
+			</li>
 		</ul>
 			<div class="sidebar-footer">
 				<div class="user-info">
