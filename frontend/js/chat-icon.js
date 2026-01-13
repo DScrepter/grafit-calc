@@ -57,11 +57,23 @@ class ChatIcon {
 	 */
 	async updateUnreadCount() {
 		try {
+			// Проверяем, что метод существует
+			if (typeof API.getSupportUnreadCount !== 'function') {
+				console.warn('API.getSupportUnreadCount не доступен');
+				return;
+			}
+			
 			const data = await API.getSupportUnreadCount();
 			this.unreadCount = data.count || 0;
 			this.updateBadge();
 		} catch (error) {
-			console.error('Ошибка получения количества непрочитанных сообщений:', error);
+			// Игнорируем ошибки таймаута и 503 (временная недоступность сервера)
+			if (error.message && 
+			    !error.message.includes('timeout') && 
+			    !error.message.includes('503') &&
+			    !error.message.includes('Service Unavailable')) {
+				console.error('Ошибка получения количества непрочитанных сообщений:', error);
+			}
 		}
 	}
 

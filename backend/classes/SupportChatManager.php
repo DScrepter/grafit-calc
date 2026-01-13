@@ -271,33 +271,44 @@ class SupportChatManager {
 	 * Получает количество непрочитанных сообщений для пользователя
 	 */
 	public function getUnreadCount($userId, $isSupport = false) {
-		if ($isSupport) {
-			// Для поддержки - считаем непрочитанные сообщения от пользователей во всех чатах
-			return $this->db->fetchOne(
-				"SELECT COUNT(*) as count 
-				FROM support_messages sm
-				INNER JOIN support_chats sc ON sc.id = sm.chat_id
-				INNER JOIN users u ON u.id = sm.sender_id
-				WHERE sm.is_read = FALSE 
-				AND (u.role != 'support' AND u.role != 'super_admin' AND u.role != 'admin')
-				AND (sc.support_user_id = ? OR sc.support_user_id IS NULL)",
-				[$userId]
-			)['count'] ?? 0;
-		} else {
-			// Для обычного пользователя - считаем непрочитанные сообщения в его чате
-			$chat = $this->getUserChat($userId);
-			if (!$chat) {
-				return 0;
+		try {
+			if ($isSupport) {
+				// Для поддержки - считаем непрочитанные сообщения от пользователей во всех чатах
+				$result = $this->db->fetchOne(
+					"SELECT COUNT(*) as count 
+					FROM support_messages sm
+					INNER JOIN support_chats sc ON sc.id = sm.chat_id
+					INNER JOIN users u ON u.id = sm.sender_id
+					WHERE sm.is_read = FALSE 
+					AND (u.role != 'support' AND u.role != 'super_admin' AND u.role != 'admin')
+					AND (sc.support_user_id = ? OR sc.support_user_id IS NULL)",
+					[$userId]
+				);
+				return isset($result['count']) ? (int)$result['count'] : 0;
+			} else {
+				// Для обычного пользователя - считаем непрочитанные сообщения в его чате
+				$chat = $this->getUserChat($userId);
+				if (!$chat) {
+					return 0;
+				}
+				
+				$result = $this->db->fetchOne(
+					"SELECT COUNT(*) as count 
+					FROM support_messages 
+					WHERE chat_id = ? 
+					AND sender_id != ? 
+					AND is_read = FALSE",
+					[$chat['id'], $userId]
+				);
+				return isset($result['count']) ? (int)$result['count'] : 0;
 			}
-			
-			return $this->db->fetchOne(
-				"SELECT COUNT(*) as count 
-				FROM support_messages 
-				WHERE chat_id = ? 
-				AND sender_id != ? 
-				AND is_read = FALSE",
-				[$chat['id'], $userId]
-			)['count'] ?? 0;
+		} catch (Exception $e) {
+			$this->logger->error('Ошибка получения количества непрочитанных сообщений', [
+				'user_id' => $userId,
+				'is_support' => $isSupport,
+				'error' => $e->getMessage()
+			]);
+			return 0;
 		}
 	}
 
@@ -305,19 +316,28 @@ class SupportChatManager {
 	 * Получает количество непрочитанных сообщений от конкретного пользователя (для поддержки)
 	 */
 	public function getUnreadCountFromUser($userId) {
-		$chat = $this->getUserChat($userId);
-		if (!$chat) {
+		try {
+			$chat = $this->getUserChat($userId);
+			if (!$chat) {
+				return 0;
+			}
+
+			$result = $this->db->fetchOne(
+				"SELECT COUNT(*) as count 
+				FROM support_messages 
+				WHERE chat_id = ? 
+				AND sender_id = ? 
+				AND is_read = FALSE",
+				[$chat['id'], $userId]
+			);
+			return isset($result['count']) ? (int)$result['count'] : 0;
+		} catch (Exception $e) {
+			$this->logger->error('Ошибка получения количества непрочитанных сообщений от пользователя', [
+				'user_id' => $userId,
+				'error' => $e->getMessage()
+			]);
 			return 0;
 		}
-
-		return $this->db->fetchOne(
-			"SELECT COUNT(*) as count 
-			FROM support_messages 
-			WHERE chat_id = ? 
-			AND sender_id = ? 
-			AND is_read = FALSE",
-			[$chat['id'], $userId]
-		)['count'] ?? 0;
 	}
 
 	/**

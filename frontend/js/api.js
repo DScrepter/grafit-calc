@@ -70,14 +70,6 @@ class API {
 		};
 
 		const config = { ...defaultOptions, ...options };
-		
-		// Для Long Polling увеличиваем таймаут до 35 секунд (30 сек на сервере + запас)
-		let timeoutId = null;
-		if (endpoint.includes('long_poll=1')) {
-			const controller = new AbortController();
-			timeoutId = setTimeout(() => controller.abort(), 35000);
-			config.signal = controller.signal;
-		}
 
 		if (config.body && typeof config.body === 'object') {
 			config.body = JSON.stringify(config.body);
@@ -85,10 +77,6 @@ class API {
 
 		try {
 			const response = await fetch(url, config);
-			
-			if (timeoutId) {
-				clearTimeout(timeoutId);
-			}
 
 			// Проверяем, что ответ является JSON
 			const contentType = response.headers.get('content-type');
@@ -99,12 +87,27 @@ class API {
 			} else {
 				// Если ответ не JSON, читаем как текст
 				const text = await response.text();
-				ErrorLogger.error('API вернул не-JSON ответ', {
-					url,
-					status: response.status,
-					contentType,
-					responseText: text.substring(0, 500), // Первые 500 символов
-				});
+				
+				// Игнорируем ошибки логирования, чтобы не создавать бесконечный цикл
+				try {
+					ErrorLogger.error('API вернул не-JSON ответ', {
+						url,
+						status: response.status,
+						contentType,
+						responseText: text.substring(0, 500), // Первые 500 символов
+					});
+				} catch (e) {
+					// Игнорируем ошибки логирования
+				}
+				
+				// Если это HTML с ошибкой PHP, извлекаем сообщение об ошибке
+				if (text.includes('Fatal error') || text.includes('Parse error')) {
+					const match = text.match(/(Fatal error|Parse error|Warning|Notice):\s*(.+?)(?:<br|<b>)/i);
+					if (match) {
+						throw new Error(`Ошибка сервера: ${match[2].trim()}`);
+					}
+				}
+				
 				throw new Error(`Сервер вернул неверный формат ответа (ожидался JSON, получен ${contentType || 'неизвестный'})`);
 			}
 
@@ -121,33 +124,35 @@ class API {
 
 			return data;
 		} catch (error) {
-			if (timeoutId) {
-				clearTimeout(timeoutId);
-			}
-			
-			// Для Long Polling таймауты - это нормально
-			if (error.name === 'AbortError' || (error.message && error.message.includes('timeout'))) {
-				throw new Error('timeout');
-			}
-			
-			// Логируем все ошибки
-			if (error instanceof TypeError && error.message.includes('fetch')) {
-				ErrorLogger.error('Ошибка сети при запросе к API', {
-					url,
-					method: config.method || 'GET',
-					error: error.message,
-				});
-			} else if (error instanceof SyntaxError) {
-				ErrorLogger.error('Ошибка парсинга JSON ответа', {
-					url,
-					method: config.method || 'GET',
-					error: error.message,
-				});
-			} else {
-				ErrorLogger.exception(error, {
-					url,
-					method: config.method || 'GET',
-				});
+			// Игнорируем ошибки логирования, чтобы не создавать бесконечный цикл
+			try {
+				// Логируем все ошибки, кроме временных
+				if (error.message && 
+				    !error.message.includes('503') && 
+				    !error.message.includes('timeout') &&
+				    !error.message.includes('Service Unavailable')) {
+					if (error instanceof TypeError && error.message.includes('fetch')) {
+						ErrorLogger.error('Ошибка сети при запросе к API', {
+							url,
+							method: config.method || 'GET',
+							error: error.message,
+						});
+					} else if (error instanceof SyntaxError) {
+						ErrorLogger.error('Ошибка парсинга JSON ответа', {
+							url,
+							method: config.method || 'GET',
+							error: error.message,
+						});
+					} else {
+						ErrorLogger.exception(error, {
+							url,
+							method: config.method || 'GET',
+						});
+					}
+				}
+			} catch (logError) {
+				// Игнорируем ошибки логирования
+				console.error('Ошибка при логировании:', logError);
 			}
 
 			console.error('API Error:', error);
@@ -711,7 +716,7 @@ class API {
 		return this.request('/support.php?action=my_chat');
 	}
 
-	static async getChatMessages(chatId, lastMessageId = 0, longPoll = false) {
+	static async getChatMessages(chatId, lastMessageId = 0) {
 		const params = new URLSearchParams({
 			action: 'messages',
 			chat_id: chatId
@@ -719,10 +724,6 @@ class API {
 		
 		if (lastMessageId > 0) {
 			params.append('last_message_id', lastMessageId);
-		}
-		
-		if (longPoll) {
-			params.append('long_poll', '1');
 		}
 		
 		return this.request(`/support.php?${params.toString()}`);

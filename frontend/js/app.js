@@ -50,8 +50,18 @@ document.addEventListener('DOMContentLoaded', async () => {
 	// Инициализация иконки чата и обновление уведомлений в навигации
 	if (typeof ChatIcon !== 'undefined') {
 		// ChatIcon уже инициализирован
-		updateUsersNavBadge();
-		setInterval(updateUsersNavBadge, 10000); // Обновляем каждые 10 секунд
+		let badgeUpdateInterval = null;
+		
+		// Функция для безопасного обновления бейджа
+		const safeUpdateBadge = () => {
+			updateUsersNavBadge().catch(error => {
+				// Игнорируем ошибки, чтобы не блокировать работу
+				console.error('Ошибка обновления бейджа:', error);
+			});
+		};
+		
+		safeUpdateBadge();
+		badgeUpdateInterval = setInterval(safeUpdateBadge, 10000); // Обновляем каждые 10 секунд
 	}
 
 	async function updateUsersNavBadge() {
@@ -61,7 +71,10 @@ document.addEventListener('DOMContentLoaded', async () => {
 
 		try {
 			const authData = await API.checkAuth();
-			if (!authData.logged_in || !authData.user) return;
+			if (!authData.logged_in || !authData.user) {
+				badge.style.display = 'none';
+				return;
+			}
 
 			const isSupport = authData.user.role === 'support' || 
 			                authData.user.role === 'super_admin' || 
@@ -69,6 +82,11 @@ document.addEventListener('DOMContentLoaded', async () => {
 
 			if (!isSupport) {
 				badge.style.display = 'none';
+				return;
+			}
+
+			// Проверяем, что метод существует
+			if (typeof API.getSupportChats !== 'function') {
 				return;
 			}
 
@@ -88,7 +106,13 @@ document.addEventListener('DOMContentLoaded', async () => {
 				badge.style.display = 'none';
 			}
 		} catch (error) {
-			console.error('Ошибка обновления уведомления в навигации:', error);
+			// Игнорируем ошибки 503 и проблемы с форматом ответа
+			if (error.message && 
+			    !error.message.includes('503') &&
+			    !error.message.includes('Service Unavailable') &&
+			    !error.message.includes('неверный формат ответа')) {
+				console.error('Ошибка обновления уведомления в навигации:', error);
+			}
 		}
 	}
 

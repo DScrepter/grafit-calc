@@ -3,10 +3,25 @@
  * API для работы с чатом техподдержки
  */
 
-require_once __DIR__ . '/error_handler.php';
+// Защита от повторного подключения
+if (defined('SUPPORT_API_LOADED')) {
+	return;
+}
+define('SUPPORT_API_LOADED', true);
+
+// Устанавливаем заголовки ПЕРВЫМ делом, до любых require
 if (!headers_sent()) {
 	header('Content-Type: application/json; charset=utf-8');
 }
+
+// Отключаем вывод ошибок в браузер
+ini_set('display_errors', 0);
+ini_set('log_errors', 1);
+
+// Подключаем error_handler
+require_once __DIR__ . '/error_handler.php';
+
+// Подключаем классы
 require_once __DIR__ . '/../classes/Auth.php';
 require_once __DIR__ . '/../classes/SupportChatManager.php';
 require_once __DIR__ . '/../classes/Logger.php';
@@ -45,7 +60,6 @@ try {
 	case 'messages':
 		// Получение сообщений чата
 		$chatId = $_GET['chat_id'] ?? null;
-		$longPoll = isset($_GET['long_poll']) && $_GET['long_poll'] === '1';
 		$lastMessageId = isset($_GET['last_message_id']) ? (int)$_GET['last_message_id'] : 0;
 		
 		if (!$chatId) {
@@ -73,37 +87,10 @@ try {
 			$manager->assignSupport($chatId, $currentUserId);
 		}
 
-		// Long Polling: ждем новых сообщений до 30 секунд
-		if ($longPoll) {
-			$maxWaitTime = 30; // секунд
-			$checkInterval = 1; // проверяем каждую секунду
-			$elapsed = 0;
-			
-			// Отключаем ограничение времени выполнения для long polling
-			set_time_limit($maxWaitTime + 10);
-			
-			while ($elapsed < $maxWaitTime) {
-				// Проверяем наличие новых сообщений
-				$newMessages = $manager->getNewMessages($chatId, $lastMessageId);
-				
-				if (!empty($newMessages)) {
-					// Найдены новые сообщения - возвращаем их сразу
-					echo json_encode($newMessages, JSON_UNESCAPED_UNICODE);
-					exit;
-				}
-				
-				// Ждем перед следующей проверкой
-				sleep($checkInterval);
-				$elapsed += $checkInterval;
-				
-				// Проверяем, не закрыто ли соединение
-				if (connection_aborted()) {
-					exit;
-				}
-			}
-			
-			// Таймаут - возвращаем пустой массив
-			echo json_encode([], JSON_UNESCAPED_UNICODE);
+		// Если указан last_message_id, возвращаем только новые сообщения
+		if ($lastMessageId > 0) {
+			$newMessages = $manager->getNewMessages($chatId, $lastMessageId);
+			echo json_encode($newMessages, JSON_UNESCAPED_UNICODE);
 		} else {
 			// Обычный запрос - возвращаем все сообщения
 			$messages = $manager->getMessages($chatId);
@@ -262,17 +249,22 @@ try {
 
 	case 'unread_count':
 		// Получение количества непрочитанных сообщений
-		$userId = $_GET['user_id'] ?? null;
-		
-		if ($isSupport && $userId) {
-			// Для поддержки - количество непрочитанных от конкретного пользователя
-			$count = $manager->getUnreadCountFromUser($userId);
-		} else {
-			// Для текущего пользователя
-			$count = $manager->getUnreadCount($currentUserId, $isSupport);
+		try {
+			$userId = $_GET['user_id'] ?? null;
+			
+			if ($isSupport && $userId) {
+				// Для поддержки - количество непрочитанных от конкретного пользователя
+				$count = $manager->getUnreadCountFromUser($userId);
+			} else {
+				// Для текущего пользователя
+				$count = $manager->getUnreadCount($currentUserId, $isSupport);
+			}
+			
+			echo json_encode(['count' => (int)$count]);
+		} catch (Exception $e) {
+			http_response_code(500);
+			echo json_encode(['error' => 'Ошибка получения количества сообщений', 'count' => 0]);
 		}
-		
-		echo json_encode(['count' => $count]);
 		break;
 
 	case 'mark_read':
@@ -372,21 +364,41 @@ try {
 		break;
 	}
 } catch (Exception $e) {
-	$logger = Logger::getInstance();
-	$logger->exception($e, [
-		'endpoint' => 'support.php',
-		'method' => $_SERVER['REQUEST_METHOD'] ?? '',
-		'action' => $action ?? ''
-	]);
-	http_response_code(500);
+	// Убеждаемся, что заголовки установлены
+	if (!headers_sent()) {
+		header('Content-Type: application/json; charset=utf-8');
+		http_response_code(500);
+	}
+	
+	try {
+		$logger = Logger::getInstance();
+		$logger->exception($e, [
+			'endpoint' => 'support.php',
+			'method' => $_SERVER['REQUEST_METHOD'] ?? '',
+			'action' => $action ?? ''
+		]);
+	} catch (Exception $logError) {
+		// Игнорируем ошибки логирования
+	}
+	
 	echo json_encode(['error' => 'Ошибка сервера: ' . $e->getMessage()], JSON_UNESCAPED_UNICODE);
 } catch (Error $e) {
-	$logger = Logger::getInstance();
-	$logger->exception($e, [
-		'endpoint' => 'support.php',
-		'method' => $_SERVER['REQUEST_METHOD'] ?? '',
-		'action' => $action ?? ''
-	]);
-	http_response_code(500);
+	// Убеждаемся, что заголовки установлены
+	if (!headers_sent()) {
+		header('Content-Type: application/json; charset=utf-8');
+		http_response_code(500);
+	}
+	
+	try {
+		$logger = Logger::getInstance();
+		$logger->exception($e, [
+			'endpoint' => 'support.php',
+			'method' => $_SERVER['REQUEST_METHOD'] ?? '',
+			'action' => $action ?? ''
+		]);
+	} catch (Exception $logError) {
+		// Игнорируем ошибки логирования
+	}
+	
 	echo json_encode(['error' => 'Критическая ошибка сервера'], JSON_UNESCAPED_UNICODE);
 }

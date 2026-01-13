@@ -119,8 +119,8 @@ try {
 			FROM calculations c
 			LEFT JOIN materials m ON c.material_id = m.id
 			LEFT JOIN product_types pt ON c.product_type_id = pt.id
-			WHERE c.id = ? AND c.user_id = ?",
-			[$id, $userId]
+			WHERE c.id = ?",
+			[$id]
 		);
 
 		if (!$calculation) {

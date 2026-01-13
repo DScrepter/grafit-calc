@@ -12,6 +12,7 @@ class SupportChat {
 		this.pollingInterval = null;
 		this.isOpen = false;
 		this.container = null;
+		this.isSending = false; // Флаг для предотвращения двойной отправки
 		this.init();
 	}
 
@@ -116,26 +117,43 @@ class SupportChat {
 						placeholder="Введите сообщение..."
 						rows="2"
 					></textarea>
-					<button class="support-chat-send-btn" onclick="window.supportChat.sendMessage()">Отправить</button>
+					<button class="support-chat-send-btn" id="supportChatSendBtn">Отправить</button>
 				</div>
 			</div>
 		`;
 
 		document.body.appendChild(this.container);
 
-		// Обработчики событий
-		const input = document.getElementById('supportChatInput');
-		if (input) {
-			input.addEventListener('keydown', (e) => {
-				if (e.key === 'Enter' && !e.shiftKey) {
+		// Небольшая задержка для гарантии, что DOM обновлен
+		setTimeout(() => {
+			// Обработчики событий
+			const input = document.getElementById('supportChatInput');
+			const sendBtn = document.getElementById('supportChatSendBtn');
+			
+			if (input) {
+				// Добавляем обработчик Enter
+				input.addEventListener('keydown', (e) => {
+					if (e.key === 'Enter' && !e.shiftKey && !this.isSending) {
+						e.preventDefault();
+						this.sendMessage();
+					}
+				});
+			}
+			
+			if (sendBtn) {
+				// Добавляем обработчик клика
+				sendBtn.addEventListener('click', (e) => {
 					e.preventDefault();
-					this.sendMessage();
-				}
-			});
-		}
+					e.stopPropagation();
+					if (!this.isSending) {
+						this.sendMessage();
+					}
+				});
+			}
 
-		// Обработка загрузки файлов
-		this.setupFileUpload();
+			// Обработка загрузки файлов
+			this.setupFileUpload();
+		}, 100);
 	}
 
 	/**
@@ -241,36 +259,14 @@ class SupportChat {
 		if (!this.chatId) return;
 
 		try {
-			if (isInitial) {
-				// Первая загрузка - получаем все сообщения
-				this.messages = await API.getChatMessages(this.chatId);
-				this.renderMessages();
-				this.markAsRead();
-			} else {
-				// Последующие проверки - используем Long Polling
-				const lastMessageId = this.messages.length > 0 
-					? Math.max(...this.messages.map(m => m.id))
-					: 0;
-				
-				const newMessages = await API.getChatMessages(this.chatId, lastMessageId, true);
-				
-				if (newMessages && newMessages.length > 0) {
-					// Добавляем новые сообщения
-					this.messages = [...this.messages, ...newMessages];
-					this.renderMessages();
-					this.markAsRead();
-					
-					// Прокручиваем вниз при новых сообщениях
-					const container = document.getElementById('supportChatMessages');
-					if (container) {
-						container.scrollTop = container.scrollHeight;
-					}
-				}
-			}
+			// Всегда получаем все сообщения при начальной загрузке
+			// Для обновлений используется polling
+			this.messages = await API.getChatMessages(this.chatId, 0);
+			this.renderMessages();
+			this.markAsRead();
 		} catch (error) {
-			// Игнорируем ошибки таймаута при Long Polling
-			if (error.message && error.message.includes('timeout')) {
-				// Таймаут - это нормально для Long Polling, просто продолжаем
+			// Игнорируем ошибки 503 (временная недоступность сервера)
+			if (error.message && error.message.includes('503')) {
 				return;
 			}
 			
@@ -374,6 +370,11 @@ class SupportChat {
 	 * Отправляет сообщение
 	 */
 	async sendMessage() {
+		// Защита от двойной отправки
+		if (this.isSending) {
+			return;
+		}
+
 		const input = document.getElementById('supportChatInput');
 		const message = input ? input.value.trim() : '';
 
@@ -383,8 +384,28 @@ class SupportChat {
 
 		if (!this.chatId && !this.isSupport) {
 			// Создаем чат при первом сообщении
-			const chat = await API.getMyChat();
-			this.chatId = chat ? chat.id : null;
+			try {
+				const chat = await API.getMyChat();
+				this.chatId = chat ? chat.id : null;
+			} catch (error) {
+				console.error('Ошибка создания чата:', error);
+				alert('Ошибка создания чата: ' + error.message);
+				return;
+			}
+		}
+
+		if (!this.chatId) {
+			alert('Ошибка: чат не создан');
+			return;
+		}
+
+		this.isSending = true;
+		
+		// Блокируем кнопку отправки
+		const sendBtn = document.querySelector('.support-chat-send-btn');
+		if (sendBtn) {
+			sendBtn.disabled = true;
+			sendBtn.textContent = 'Отправка...';
 		}
 
 		try {
@@ -406,10 +427,21 @@ class SupportChat {
 			}
 
 			// Перезагружаем сообщения (полная загрузка после отправки)
-			await this.loadMessages(true);
+			// Небольшая задержка, чтобы сервер успел обработать сообщение
+			setTimeout(async () => {
+				await this.loadMessages(true);
+			}, 500);
 		} catch (error) {
 			console.error('Ошибка отправки сообщения:', error);
 			alert('Ошибка отправки сообщения: ' + error.message);
+		} finally {
+			this.isSending = false;
+			
+			// Разблокируем кнопку отправки
+			if (sendBtn) {
+				sendBtn.disabled = false;
+				sendBtn.textContent = 'Отправить';
+			}
 		}
 	}
 
@@ -427,31 +459,68 @@ class SupportChat {
 	}
 
 	/**
-	 * Запускает Long Polling для проверки новых сообщений
+	 * Запускает polling для проверки новых сообщений
 	 */
 	startPolling() {
 		this.stopPolling();
 		
+		let isPolling = false;
+		
 		const poll = async () => {
-			if (this.isOpen && this.chatId) {
-				try {
-					await this.loadMessages(false); // Long Polling запрос
-				} catch (error) {
-					// При ошибке ждем немного и повторяем
-					if (this.isOpen && this.chatId) {
-						setTimeout(poll, 2000);
-						return;
-					}
-				}
+			// Защита от параллельных запросов
+			if (isPolling || !this.isOpen || !this.chatId || this.isSending) {
+				return;
 			}
 			
-			// Сразу запускаем следующий запрос (Long Polling сам ждет на сервере)
-			if (this.isOpen && this.chatId) {
-				poll();
+			isPolling = true;
+			
+			try {
+				// Используем обычный запрос с проверкой только новых сообщений
+				const lastMessageId = this.messages.length > 0 
+					? Math.max(...this.messages.map(m => m.id))
+					: 0;
+				
+				const newMessages = await API.getChatMessages(this.chatId, lastMessageId);
+				
+				if (newMessages && newMessages.length > 0) {
+					// Проверяем, что сообщения действительно новые (защита от дублей)
+					const existingIds = new Set(this.messages.map(m => m.id));
+					const uniqueNewMessages = newMessages.filter(m => !existingIds.has(m.id));
+					
+					if (uniqueNewMessages.length > 0) {
+						// Добавляем только уникальные новые сообщения
+						this.messages = [...this.messages, ...uniqueNewMessages];
+						this.renderMessages();
+						this.markAsRead();
+						
+						// Прокручиваем вниз при новых сообщениях
+						const container = document.getElementById('supportChatMessages');
+						if (container) {
+							container.scrollTop = container.scrollHeight;
+						}
+					}
+				}
+			} catch (error) {
+				// Игнорируем ошибки 503 и таймауты
+				if (error.message && 
+				    !error.message.includes('503') &&
+				    !error.message.includes('timeout') &&
+				    !error.message.includes('Service Unavailable')) {
+					console.error('Ошибка polling:', error);
+				}
+			} finally {
+				isPolling = false;
 			}
 		};
 		
-		// Запускаем первый запрос
+		// Запускаем polling каждые 5 секунд
+		this.pollingInterval = setInterval(() => {
+			if (this.isOpen && this.chatId && !this.isSending) {
+				poll();
+			}
+		}, 5000);
+		
+		// Первый запрос сразу
 		poll();
 	}
 

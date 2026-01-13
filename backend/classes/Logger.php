@@ -3,8 +3,6 @@
  * Класс для логирования ошибок и сообщений
  */
 
-require_once __DIR__ . '/../config/config.php';
-
 class Logger {
 	private static $instance = null;
 	private $logDir;
@@ -12,7 +10,38 @@ class Logger {
 	private $config;
 
 	private function __construct() {
-		$this->config = require __DIR__ . '/../config/config.php';
+		// Загружаем конфигурацию один раз
+		if (!isset($GLOBALS['app_config'])) {
+			$config_file = __DIR__ . '/../config/config.php';
+			if (file_exists($config_file)) {
+				$GLOBALS['app_config'] = require $config_file;
+			} else {
+				$GLOBALS['app_config'] = [
+					'database' => [
+						'host' => 'localhost',
+						'port' => 3306,
+						'dbname' => 'cost_calculator_web',
+						'username' => 'root',
+						'password' => '',
+						'charset' => 'utf8mb4'
+					],
+					'app' => [
+						'name' => 'Калькулятор себестоимости',
+						'debug' => true,
+						'timezone' => 'Europe/Moscow'
+					],
+					'session' => [
+						'lifetime' => 3600,
+						'name' => 'cost_calc_session'
+					],
+					'logging' => [
+						'enabled' => true,
+						'level' => 'ERROR'
+					]
+				];
+			}
+		}
+		$this->config = $GLOBALS['app_config'];
 		
 		// Директория для логов (относительно корня проекта)
 		$baseDir = dirname(__DIR__, 2);

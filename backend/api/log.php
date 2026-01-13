@@ -3,7 +3,18 @@
  * API для логирования ошибок с фронтенда
  */
 
+// Защита от повторного подключения
+if (defined('LOG_API_LOADED')) {
+	return;
+}
+define('LOG_API_LOADED', true);
+
 header('Content-Type: application/json; charset=utf-8');
+
+// Отключаем вывод ошибок в браузер
+ini_set('display_errors', 0);
+ini_set('log_errors', 1);
+
 require_once __DIR__ . '/../classes/Logger.php';
 
 $method = $_SERVER['REQUEST_METHOD'];

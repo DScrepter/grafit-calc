@@ -36,8 +36,8 @@ try {
 				FROM calculations c
 				LEFT JOIN materials m ON c.material_id = m.id
 				LEFT JOIN product_types pt ON c.product_type_id = pt.id
-				WHERE c.id = ? AND c.user_id = ?",
-				[$id, $userId]
+				WHERE c.id = ?",
+				[$id]
 			);
 			if ($calculation) {
 				// Декодируем JSON поля
@@ -76,8 +76,7 @@ try {
 
 			// Получаем общее количество
 			$total = $db->fetchOne(
-				"SELECT COUNT(*) as count FROM calculations WHERE user_id = ?",
-				[$userId]
+				"SELECT COUNT(*) as count FROM calculations"
 			)['count'];
 
 			// Получаем список (проверяем наличие updated_at через информацию о колонках)
@@ -97,10 +96,9 @@ try {
 				FROM calculations c
 				LEFT JOIN materials m ON c.material_id = m.id
 				LEFT JOIN product_types pt ON c.product_type_id = pt.id
-				WHERE c.user_id = ?
 				ORDER BY c.created_at DESC
 				LIMIT ? OFFSET ?",
-				[$userId, $limit, $offset]
+				[$limit, $offset]
 			);
 
 			// Обрабатываем JSON поля
@@ -185,10 +183,10 @@ try {
 			exit;
 		}
 
-		// Проверяем, что расчет принадлежит пользователю
+		// Проверяем, что расчет существует
 		$existing = $db->fetchOne(
-			"SELECT id FROM calculations WHERE id = ? AND user_id = ?",
-			[$id, $userId]
+			"SELECT id FROM calculations WHERE id = ?",
+			[$id]
 		);
 
 		if (!$existing) {
@@ -206,8 +204,8 @@ try {
 			"UPDATE calculations 
 			SET product_name = ?, material_id = ?, product_type_id = ?, 
 				parameters = ?, operations = ?, result = ?
-			WHERE id = ? AND user_id = ?",
-			[$productName, $materialId, $productTypeId, $parametersJson, $operationsJson, $resultJson, $id, $userId]
+			WHERE id = ?",
+			[$productName, $materialId, $productTypeId, $parametersJson, $operationsJson, $resultJson, $id]
 		);
 
 		echo json_encode(['success' => true], JSON_UNESCAPED_UNICODE);
@@ -221,10 +219,10 @@ try {
 			exit;
 		}
 
-		// Проверяем, что расчет принадлежит пользователю
+		// Проверяем, что расчет существует
 		$existing = $db->fetchOne(
-			"SELECT id FROM calculations WHERE id = ? AND user_id = ?",
-			[$id, $userId]
+			"SELECT id FROM calculations WHERE id = ?",
+			[$id]
 		);
 
 		if (!$existing) {
@@ -233,7 +231,7 @@ try {
 			exit;
 		}
 
-		$result = $db->execute("DELETE FROM calculations WHERE id = ? AND user_id = ?", [$id, $userId]);
+		$result = $db->execute("DELETE FROM calculations WHERE id = ?", [$id]);
 		if ($result) {
 			echo json_encode(['success' => true], JSON_UNESCAPED_UNICODE);
 		} else {
