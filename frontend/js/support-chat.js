@@ -1,5 +1,5 @@
 /**
- * Виджет чата техподдержки
+ * Виджет чата техподдержки 1.0.0 
  */
 
 class SupportChat {
@@ -22,12 +22,12 @@ class SupportChat {
 			const authData = await API.checkAuth();
 			if (authData.logged_in && authData.user) {
 				this.currentUser = authData.user;
-				this.isSupport = authData.user.role === 'support' || 
-				                authData.user.role === 'super_admin' || 
-				                authData.user.role === 'admin';
+				this.isSupport = authData.user.role === 'support' ||
+					authData.user.role === 'super_admin' ||
+					authData.user.role === 'admin';
 			}
 		} catch (error) {
-			console.error('Ошибка проверки авторизации:', error);
+			// Игнорируем ошибку - пользователь не авторизован
 		}
 	}
 
@@ -37,7 +37,7 @@ class SupportChat {
 	async open(userId = null) {
 		this.userId = userId;
 		this.isOpen = true;
-		
+
 		if (this.isSupport && userId) {
 			// Для поддержки - открываем чат с конкретным пользователем
 			const chat = await API.getMyChat();
@@ -85,7 +85,7 @@ class SupportChat {
 			this.container.remove();
 		}
 
-		const chatTitle = this.isSupport && this.userId 
+		const chatTitle = this.isSupport && this.userId
 			? 'Чат с пользователем'
 			: 'Чат с техподдержкой';
 
@@ -129,7 +129,7 @@ class SupportChat {
 			// Обработчики событий
 			const input = document.getElementById('supportChatInput');
 			const sendBtn = document.getElementById('supportChatSendBtn');
-			
+
 			if (input) {
 				// Добавляем обработчик Enter
 				input.addEventListener('keydown', (e) => {
@@ -139,7 +139,7 @@ class SupportChat {
 					}
 				});
 			}
-			
+
 			if (sendBtn) {
 				// Добавляем обработчик клика
 				sendBtn.addEventListener('click', (e) => {
@@ -265,11 +265,21 @@ class SupportChat {
 			this.renderMessages();
 			this.markAsRead();
 		} catch (error) {
+			// При 401 (не авторизован) - закрываем чат
+			if (error.message && (
+				error.message.includes('401') ||
+				error.message.includes('Требуется авторизация') ||
+				error.message.includes('Unauthorized')
+			)) {
+				this.close();
+				return;
+			}
+
 			// Игнорируем ошибки 503 (временная недоступность сервера)
 			if (error.message && error.message.includes('503')) {
 				return;
 			}
-			
+
 			console.error('Ошибка загрузки сообщений:', error);
 			const messagesContainer = document.getElementById('supportChatMessages');
 			if (messagesContainer && isInitial) {
@@ -293,9 +303,9 @@ class SupportChat {
 		container.innerHTML = this.messages.map(msg => {
 			const isMyMessage = msg.sender_id == this.currentUser.id;
 			const senderName = this.getSenderName(msg);
-			const time = new Date(msg.created_at).toLocaleTimeString('ru-RU', { 
-				hour: '2-digit', 
-				minute: '2-digit' 
+			const time = new Date(msg.created_at).toLocaleTimeString('ru-RU', {
+				hour: '2-digit',
+				minute: '2-digit'
 			});
 
 			let attachmentsHtml = '';
@@ -303,7 +313,7 @@ class SupportChat {
 				attachmentsHtml = msg.attachments.map(att => {
 					const isImage = att.mime_type && att.mime_type.startsWith('image/');
 					const url = API.getSupportAttachmentUrl(att.id);
-					
+
 					if (isImage) {
 						return `<div class="support-chat-attachment">
 							<a href="${url}" target="_blank">
@@ -344,7 +354,7 @@ class SupportChat {
 		if (message.sender_id == this.currentUser.id) {
 			return 'Вы';
 		}
-		
+
 		const fullName = [message.first_name, message.last_name].filter(Boolean).join(' ');
 		return fullName || message.username || 'Пользователь';
 	}
@@ -400,7 +410,7 @@ class SupportChat {
 		}
 
 		this.isSending = true;
-		
+
 		// Блокируем кнопку отправки
 		const sendBtn = document.querySelector('.support-chat-send-btn');
 		if (sendBtn) {
@@ -436,7 +446,7 @@ class SupportChat {
 			alert('Ошибка отправки сообщения: ' + error.message);
 		} finally {
 			this.isSending = false;
-			
+
 			// Разблокируем кнопку отправки
 			if (sendBtn) {
 				sendBtn.disabled = false;
@@ -463,36 +473,36 @@ class SupportChat {
 	 */
 	startPolling() {
 		this.stopPolling();
-		
+
 		let isPolling = false;
-		
+
 		const poll = async () => {
 			// Защита от параллельных запросов
 			if (isPolling || !this.isOpen || !this.chatId || this.isSending) {
 				return;
 			}
-			
+
 			isPolling = true;
-			
+
 			try {
 				// Используем обычный запрос с проверкой только новых сообщений
-				const lastMessageId = this.messages.length > 0 
+				const lastMessageId = this.messages.length > 0
 					? Math.max(...this.messages.map(m => m.id))
 					: 0;
-				
+
 				const newMessages = await API.getChatMessages(this.chatId, lastMessageId);
-				
+
 				if (newMessages && newMessages.length > 0) {
 					// Проверяем, что сообщения действительно новые (защита от дублей)
 					const existingIds = new Set(this.messages.map(m => m.id));
 					const uniqueNewMessages = newMessages.filter(m => !existingIds.has(m.id));
-					
+
 					if (uniqueNewMessages.length > 0) {
 						// Добавляем только уникальные новые сообщения
 						this.messages = [...this.messages, ...uniqueNewMessages];
 						this.renderMessages();
 						this.markAsRead();
-						
+
 						// Прокручиваем вниз при новых сообщениях
 						const container = document.getElementById('supportChatMessages');
 						if (container) {
@@ -501,25 +511,35 @@ class SupportChat {
 					}
 				}
 			} catch (error) {
+				// При 401 (не авторизован) - останавливаем polling и закрываем чат
+				if (error.message && (
+					error.message.includes('401') ||
+					error.message.includes('Требуется авторизация') ||
+					error.message.includes('Unauthorized')
+				)) {
+					this.close();
+					return;
+				}
+
 				// Игнорируем ошибки 503 и таймауты
-				if (error.message && 
-				    !error.message.includes('503') &&
-				    !error.message.includes('timeout') &&
-				    !error.message.includes('Service Unavailable')) {
+				if (error.message &&
+					!error.message.includes('503') &&
+					!error.message.includes('timeout') &&
+					!error.message.includes('Service Unavailable')) {
 					console.error('Ошибка polling:', error);
 				}
 			} finally {
 				isPolling = false;
 			}
 		};
-		
+
 		// Запускаем polling каждые 5 секунд
 		this.pollingInterval = setInterval(() => {
 			if (this.isOpen && this.chatId && !this.isSending) {
 				poll();
 			}
 		}, 5000);
-		
+
 		// Первый запрос сразу
 		poll();
 	}

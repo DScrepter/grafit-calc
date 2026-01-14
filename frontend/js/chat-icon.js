@@ -21,9 +21,13 @@ class ChatIcon {
 				this.isSupport = authData.user.role === 'support' || 
 				                authData.user.role === 'super_admin' || 
 				                authData.user.role === 'admin';
+			} else {
+				// Пользователь не авторизован - не показываем иконку и не запускаем polling
+				return;
 			}
 		} catch (error) {
-			console.error('Ошибка проверки авторизации:', error);
+			// Ошибка проверки авторизации - не показываем иконку
+			return;
 		}
 
 		this.render();
@@ -67,6 +71,20 @@ class ChatIcon {
 			this.unreadCount = data.count || 0;
 			this.updateBadge();
 		} catch (error) {
+			// При 401 (не авторизован) - останавливаем polling и скрываем иконку
+			if (error.message && (
+				error.message.includes('401') || 
+				error.message.includes('Требуется авторизация') ||
+				error.message.includes('Unauthorized')
+			)) {
+				this.stopPolling();
+				if (this.iconElement) {
+					this.iconElement.remove();
+					this.iconElement = null;
+				}
+				return;
+			}
+			
 			// Игнорируем ошибки таймаута и 503 (временная недоступность сервера)
 			if (error.message && 
 			    !error.message.includes('timeout') && 
