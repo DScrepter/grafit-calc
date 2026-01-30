@@ -19,7 +19,7 @@ return [
 		'timezone' => 'Europe/Moscow'
 	],
 	'session' => [
-		'lifetime' => 3600, // 1 час
+		'lifetime' => 86400, // 1 день
 		'name' => 'cost_calc_session'
 	],
 	'logging' => [

@@ -33,7 +33,7 @@ const ProductsPage = {
 			this.renderCalculations();
 			this.renderPagination();
 		} catch (error) {
-			document.getElementById('calculationsContainer').innerHTML = 
+			document.getElementById('calculationsContainer').innerHTML =
 				'<div class="error-message">Ошибка загрузки: ' + error.message + '</div>';
 		}
 	},
@@ -165,7 +165,7 @@ const ProductsPage = {
 			html += '<div class="field-group-title">Результаты расчета</div>';
 			html += '<table class="data-table">';
 			html += '<tbody>';
-			
+
 			if (result.workpiece_volume !== undefined) {
 				html += '<tr><td>Объем заготовки</td><td>' + this.formatNumber(result.workpiece_volume) + ' мм³</td></tr>';
 			}
@@ -187,13 +187,14 @@ const ProductsPage = {
 			if (result.material_cost !== undefined) {
 				html += '<tr><td>Стоимость материала</td><td>' + this.formatNumber(result.material_cost) + ' руб</td></tr>';
 			}
-			if (result.total_operations_cost !== undefined) {
-				html += '<tr><td>Зарплата (операции)</td><td>' + this.formatNumber(result.total_operations_cost) + ' руб</td></tr>';
+			const salaryDisplay = result.salary_with_quantity_coef ?? result.total_operations_cost;
+			if (salaryDisplay !== undefined) {
+				html += '<tr><td>Зарплата (операции)</td><td>' + this.formatNumber(salaryDisplay) + ' руб</td></tr>';
 			}
 
-			// Коэффициенты
+			// Коэффициенты (налоги)
 			if (result.coefficients && result.coefficients.length > 0) {
-				html += '<tr><td colspan="2"><strong>Коэффициенты:</strong></td></tr>';
+				html += '<tr><td colspan="2"><strong>Коэффициенты (налоги):</strong></td></tr>';
 				result.coefficients.forEach(coef => {
 					html += '<tr>';
 					html += '<td>' + this.escapeHtml(coef.name) + ' (' + coef.value + '%)</td>';
@@ -205,13 +206,23 @@ const ProductsPage = {
 				}
 			}
 
+			if (result.ohr_cost !== undefined) {
+				html += '<tr><td>ОХР (коэф. массы ' + (result.mass_coefficient ?? '') + ')</td><td>' + this.formatNumber(result.ohr_cost) + ' руб</td></tr>';
+			}
+
 			html += '</tbody></table>';
-			
-			// Общая себестоимость - выделяем
+
+			// Общая себестоимость и с маржой
 			if (result.total_cost_without_packaging !== undefined) {
 				html += '<div class="result-row" style="margin-top: 20px; padding: 15px; background: #e3f2fd; border-radius: 4px; font-size: 18px;">';
 				html += '<span class="result-label" style="font-weight: 600;">Общая себестоимость:</span>';
 				html += '<span class="result-value" style="font-weight: bold; color: #1976d2;">' + this.formatNumber(result.total_cost_without_packaging) + ' руб</span>';
+				html += '</div>';
+			}
+			if (result.total_cost_with_margin !== undefined) {
+				html += '<div class="result-row" style="margin-top: 8px; padding: 15px; background: #e8f5e9; border-radius: 4px; font-size: 18px;">';
+				html += '<span class="result-label" style="font-weight: 600;">Итого с маржой 40%:</span>';
+				html += '<span class="result-value" style="font-weight: bold; color: #2e7d32;">' + this.formatNumber(result.total_cost_with_margin) + ' руб</span>';
 				html += '</div>';
 			}
 			html += '</div>';

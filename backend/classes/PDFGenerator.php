@@ -146,13 +146,14 @@ class PDFGenerator {
 			$this->pdf->Cell(0, 6, number_format($result['waste_mass'] ?? 0, 4, '.', ' ') . ' кг', 0, 1);
 			$this->pdf->Cell(100, 6, 'Стоимость материала:', 0, 0);
 			$this->pdf->Cell(0, 6, number_format($result['material_cost'] ?? 0, 2, '.', ' ') . ' руб', 0, 1);
+			$salaryDisplay = $result['salary_with_quantity_coef'] ?? $result['total_operations_cost'] ?? 0;
 			$this->pdf->Cell(100, 6, 'Зарплата (операции):', 0, 0);
-			$this->pdf->Cell(0, 6, number_format($result['total_operations_cost'] ?? 0, 2, '.', ' ') . ' руб', 0, 1);
+			$this->pdf->Cell(0, 6, number_format($salaryDisplay, 2, '.', ' ') . ' руб', 0, 1);
 			
 			if (!empty($result['coefficients'])) {
 				$this->pdf->Ln(3);
 				$this->pdf->SetFont('dejavusans', 'B', 10);
-				$this->pdf->Cell(0, 6, 'Коэффициенты:', 0, 1);
+				$this->pdf->Cell(0, 6, 'Коэффициенты (налоги):', 0, 1);
 				$this->pdf->SetFont('dejavusans', '', 10);
 				
 				foreach ($result['coefficients'] as $coef) {
@@ -164,11 +165,20 @@ class PDFGenerator {
 				$this->pdf->Cell(0, 6, number_format($result['coefficients_cost'] ?? 0, 2, '.', ' ') . ' руб', 0, 1);
 			}
 			
+			if (isset($result['ohr_cost'])) {
+				$this->pdf->Cell(100, 6, 'ОХР (коэф. массы ' . ($result['mass_coefficient'] ?? '') . '):', 0, 0);
+				$this->pdf->Cell(0, 6, number_format($result['ohr_cost'], 2, '.', ' ') . ' руб', 0, 1);
+			}
+			
 			$this->pdf->Ln(5);
 			$this->pdf->Line(15, $this->pdf->GetY(), 195, $this->pdf->GetY());
 			$this->pdf->Ln(5);
 			$this->pdf->SetFont('dejavusans', 'B', 14);
 			$this->pdf->Cell(0, 8, 'Общая себестоимость: ' . number_format($result['total_cost_without_packaging'] ?? 0, 2, '.', ' ') . ' руб', 0, 1);
+			if (isset($result['total_cost_with_margin'])) {
+				$this->pdf->SetFont('dejavusans', 'B', 14);
+				$this->pdf->Cell(0, 8, 'Итого с маржой 40%: ' . number_format($result['total_cost_with_margin'], 2, '.', ' ') . ' руб', 0, 1);
+			}
 			$this->pdf->SetFont('dejavusans', '', 10);
 		}
 		

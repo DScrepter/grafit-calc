@@ -44,6 +44,7 @@ $materialId = isset($data['material_id']) ? (int)$data['material_id'] : null;
 $productTypeId = isset($data['product_type_id']) ? (int)$data['product_type_id'] : null;
 $parameters = $data['parameters'] ?? [];
 $operations = $data['operations'] ?? [];
+$quantity = isset($data['quantity']) ? max(1, (int)$data['quantity']) : 5;
 
 if (empty($productName) || !$materialId || !$productTypeId) {
 	http_response_code(400);
@@ -52,7 +53,7 @@ if (empty($productName) || !$materialId || !$productTypeId) {
 }
 
 try {
-	$result = $calculator->calculate($productName, $materialId, $productTypeId, $parameters, $operations);
+	$result = $calculator->calculate($productName, $materialId, $productTypeId, $parameters, $operations, $quantity);
 	echo json_encode($result, JSON_UNESCAPED_UNICODE);
 } catch (Exception $e) {
 	$logger = Logger::getInstance();

@@ -87,7 +87,7 @@ class API {
 			} else {
 				// Если ответ не JSON, читаем как текст
 				const text = await response.text();
-				
+
 				// Игнорируем ошибки логирования, чтобы не создавать бесконечный цикл
 				try {
 					ErrorLogger.error('API вернул не-JSON ответ', {
@@ -99,7 +99,7 @@ class API {
 				} catch (e) {
 					// Игнорируем ошибки логирования
 				}
-				
+
 				// Если это HTML с ошибкой PHP, извлекаем сообщение об ошибке
 				if (text.includes('Fatal error') || text.includes('Parse error')) {
 					const match = text.match(/(Fatal error|Parse error|Warning|Notice):\s*(.+?)(?:<br|<b>)/i);
@@ -107,7 +107,7 @@ class API {
 						throw new Error(`Ошибка сервера: ${match[2].trim()}`);
 					}
 				}
-				
+
 				throw new Error(`Сервер вернул неверный формат ответа (ожидался JSON, получен ${contentType || 'неизвестный'})`);
 			}
 
@@ -127,10 +127,10 @@ class API {
 			// Игнорируем ошибки логирования, чтобы не создавать бесконечный цикл
 			try {
 				// Логируем все ошибки, кроме временных
-				if (error.message && 
-				    !error.message.includes('503') && 
-				    !error.message.includes('timeout') &&
-				    !error.message.includes('Service Unavailable')) {
+				if (error.message &&
+					!error.message.includes('503') &&
+					!error.message.includes('timeout') &&
+					!error.message.includes('Service Unavailable')) {
 					if (error instanceof TypeError && error.message.includes('fetch')) {
 						ErrorLogger.error('Ошибка сети при запросе к API', {
 							url,
@@ -464,13 +464,13 @@ class API {
 					</tr>
 					<tr>
 						<td style="padding: 8px; border: 1px solid rgb(221, 221, 221); color: rgb(0, 0, 0);">Зарплата (операции)</td>
-						<td style="padding: 8px; border: 1px solid rgb(221, 221, 221); color: rgb(0, 0, 0);">${this.formatNumber(result.total_operations_cost || 0, 2)} руб</td>
+						<td style="padding: 8px; border: 1px solid rgb(221, 221, 221); color: rgb(0, 0, 0);">${this.formatNumber(result.salary_with_quantity_coef ?? result.total_operations_cost ?? 0, 2)} руб</td>
 					</tr>`;
 
 			if (result.coefficients && result.coefficients.length > 0) {
 				html += `
 					<tr>
-						<td colspan="2" style="padding: 8px; border: 1px solid rgb(221, 221, 221); color: rgb(0, 0, 0); font-weight: bold;">Коэффициенты:</td>
+						<td colspan="2" style="padding: 8px; border: 1px solid rgb(221, 221, 221); color: rgb(0, 0, 0); font-weight: bold;">Коэффициенты (налоги):</td>
 					</tr>`;
 				result.coefficients.forEach(coef => {
 					html += `
@@ -486,11 +486,26 @@ class API {
 					</tr>`;
 			}
 
+			if (result.ohr_cost !== undefined) {
+				html += `
+					<tr>
+						<td style="padding: 8px; border: 1px solid rgb(221, 221, 221); color: rgb(0, 0, 0);">ОХР (коэф. массы ${result.mass_coefficient ?? ''})</td>
+						<td style="padding: 8px; border: 1px solid rgb(221, 221, 221); color: rgb(0, 0, 0);">${this.formatNumber(result.ohr_cost, 2)} руб</td>
+					</tr>`;
+			}
+
 			html += `
 				</table>
 				<div style="font-size: 18px; font-weight: bold; color: rgb(0, 0, 0); margin-top: 20px; padding-top: 10px; border-top: 2px solid rgb(51, 51, 51);">
 					Общая себестоимость: ${this.formatNumber(result.total_cost_without_packaging || 0, 2)} руб
-				</div>
+				</div>`;
+			if (result.total_cost_with_margin !== undefined) {
+				html += `
+				<div style="font-size: 18px; font-weight: bold; color: rgb(0, 0, 0); margin-top: 8px;">
+					Итого с маржой 40%: ${this.formatNumber(result.total_cost_with_margin, 2)} руб
+				</div>`;
+			}
+			html += `
 			</div>`;
 		}
 
@@ -539,7 +554,7 @@ class API {
 
 			// Проверяем content-type ПЕРЕД чтением body
 			const contentType = response.headers.get('content-type') || '';
-			
+
 			if (!response.ok) {
 				// Для ошибок читаем текст только один раз
 				const errorText = await response.text();
@@ -721,11 +736,11 @@ class API {
 			action: 'messages',
 			chat_id: chatId
 		});
-		
+
 		if (lastMessageId > 0) {
 			params.append('last_message_id', lastMessageId);
 		}
-		
+
 		return this.request(`/support.php?${params.toString()}`);
 	}
 
@@ -766,7 +781,7 @@ class API {
 	}
 
 	static async getSupportUnreadCount(userId = null) {
-		const url = userId 
+		const url = userId
 			? `/support.php?action=unread_count&user_id=${userId}`
 			: '/support.php?action=unread_count';
 		return this.request(url);

@@ -24,7 +24,19 @@ class Calculator {
 		$this->logger = Logger::getInstance();
 	}
 
-	public function calculate($productName, $materialId, $productTypeId, $parameters, $operations = []) {
+	/**
+	 * Коэффициент массы для ОХР по массе изделия (кг).
+	 * @param float $productMass масса изделия в кг
+	 * @return float
+	 */
+	private function getMassCoefficient($productMass) {
+		if ($productMass < 1) return 9.0;
+		if ($productMass < 5) return 12.5;
+		if ($productMass < 10) return 16.0;
+		return 15.0;
+	}
+
+	public function calculate($productName, $materialId, $productTypeId, $parameters, $operations = [], $quantity = 5) {
 		// Получаем материал
 		$material = $this->materialManager->getById($materialId);
 		if (!$material) {
@@ -92,13 +104,18 @@ class Calculator {
 			}
 		}
 
-		// Вычисляем коэффициенты
+		// Коэффициент за мелкие заказы: количество >= 5 → K = 1.0, иначе K = 1.5
+		$quantity = (int)$quantity;
+		$quantityCoefficient = $quantity >= 5 ? 1.0 : 1.5;
+		$salaryWithCoeff = $totalOperationsCost * $quantityCoefficient;
+
+		// Налоги/коэффициенты считаем от зарплаты (с коэффициентом количества)
 		$coefficients = $this->db->fetchAll("SELECT * FROM coefficients ORDER BY name");
 		$calculationCoefficients = [];
 		$coefficientsCost = 0.0;
 
 		foreach ($coefficients as $coefficient) {
-			$coefficientAmount = $totalOperationsCost * ((float)$coefficient['value'] / 100.0);
+			$coefficientAmount = $salaryWithCoeff * ((float)$coefficient['value'] / 100.0);
 			$coefficientsCost += $coefficientAmount;
 
 			$calculationCoefficients[] = [
@@ -108,14 +125,23 @@ class Calculator {
 			];
 		}
 
-		// Вычисляем общую себестоимость без упаковки
-		$totalCostWithoutPackaging = $materialCost + $totalOperationsCost + $coefficientsCost;
+		// ОХР = ((Масса изделия * коэф.массы) + (зарплата + налоги)) / 2
+		$massCoeff = $this->getMassCoefficient($productMass);
+		$ohrCost = (($productMass * $massCoeff) + ($salaryWithCoeff + $coefficientsCost)) / 2.0;
+
+		// Общая себестоимость без упаковки
+		$totalCostWithoutPackaging = $materialCost + $salaryWithCoeff + $coefficientsCost + $ohrCost;
+
+		// Маржинальность 40% на конечную стоимость
+		$totalCostWithMargin = $totalCostWithoutPackaging * 1.40;
 
 		return [
 			'product_name' => $productName,
 			'material_name' => $material['mark'],
 			'product_type_name' => $productType['name'],
 			'parameters' => $parameters,
+			'quantity' => $quantity,
+			'quantity_coefficient' => $quantityCoefficient,
 			'workpiece_volume' => $workpieceVolume,
 			'product_volume' => $productVolume,
 			'waste_volume' => $wasteVolume,
@@ -126,9 +152,13 @@ class Calculator {
 			'material_cost' => $materialCost,
 			'operations' => $calculationOperations,
 			'total_operations_cost' => $totalOperationsCost,
+			'salary_with_quantity_coef' => $salaryWithCoeff,
 			'coefficients' => $calculationCoefficients,
 			'coefficients_cost' => $coefficientsCost,
-			'total_cost_without_packaging' => $totalCostWithoutPackaging
+			'mass_coefficient' => $massCoeff,
+			'ohr_cost' => $ohrCost,
+			'total_cost_without_packaging' => $totalCostWithoutPackaging,
+			'total_cost_with_margin' => $totalCostWithMargin
 		];
 	}
 }

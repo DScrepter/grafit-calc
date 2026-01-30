@@ -16,8 +16,12 @@ class Auth {
 	private function startSession() {
 		if (session_status() === PHP_SESSION_NONE) {
 			$config = require __DIR__ . '/../config/config.php';
+			$lifetime = $config['session']['lifetime'];
 			session_name($config['session']['name']);
-			session_set_cookie_params($config['session']['lifetime']);
+			// Устанавливаем время жизни сессии на сервере
+			ini_set('session.gc_maxlifetime', $lifetime);
+			// Устанавливаем параметры cookie сессии
+			session_set_cookie_params($lifetime);
 			session_start();
 		}
 	}
