@@ -29,10 +29,10 @@
 			<?php endif; ?>
 			<?php if ($auth->canAccessCalculators()): ?>
 				<li class="nav-group" id="calculatorsGroup">
-					<span class="nav-group-title">Калькуляторы</span>
+					<span class="nav-group-title">Калькуляция</span>
 					<ul class="nav-items">
-						<li data-page="calculator" <?php echo ($sidebar_type === 'calculator') ? 'class="active"' : ''; ?>><a href="/calculator">Основной калькулятор</a></li>
-						<li data-page="products"><a href="/calculator?page=products">Изделия</a></li>
+						<li data-page="calculator" <?php echo ($sidebar_type === 'calculator') ? 'class="active"' : ''; ?>><a href="/calculator">Расчет стоимости</a></li>
+						<li data-page="products"><a href="/calculator?page=products">Архив расчетов</a></li>
 					</ul>
 				</li>
 			<?php endif; ?>
