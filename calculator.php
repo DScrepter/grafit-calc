@@ -40,25 +40,28 @@ require __DIR__ . '/templates/header.php';
 	<!-- Модальное окно выбора операции -->
 	<div id="operationDialog" class="modal" style="display: none;">
 		<div class="modal-content">
-			<div class="modal-header">
-				<div class="modal-header-left">
+			<div class="modal-header modal-header-operations">
+				<div class="modal-header-top">
 					<h3>Выбор операции</h3>
+					<button class="modal-close" onclick="closeOperationDialog()">&times;</button>
+				</div>
+				<div class="modal-header-filters">
+					<div class="search-box operation-search-sticky">
+						<input type="text" id="operationSearch" placeholder="Поиск по описанию или марке материала...">
+					</div>
 					<div class="complexity-coefficient-sticky">
 						<label for="complexityCoefficient">Коэффициент сложности:</label>
 						<input type="number" id="complexityCoefficient" min="0.1" max="10" step="0.01" value="1.0">
 					</div>
 				</div>
-				<button class="modal-close" onclick="closeOperationDialog()">&times;</button>
 			</div>
-			<div class="modal-body">
-				<div class="search-box">
-					<input type="text" id="operationSearch" placeholder="Поиск по номеру или описанию...">
-				</div>
-				<table class="data-table" id="operationsTable">
+			<div class="modal-body modal-body-operations">
+				<table class="data-table" id="operationsDialogTable">
 					<thead>
 						<tr>
 							<th data-sort="number">Номер</th>
 							<th data-sort="description">Описание</th>
+							<th data-sort="materials">Марки материалов</th>
 							<th data-sort="unit">Единица</th>
 							<th data-sort="cost">Стоимость (руб/ед)</th>
 						</tr>

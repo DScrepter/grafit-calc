@@ -10,6 +10,7 @@ if (!headers_sent()) {
 }
 require_once __DIR__ . '/../classes/Auth.php';
 require_once __DIR__ . '/../classes/MigrationManager.php';
+require_once __DIR__ . '/../classes/OperationsImporter.php';
 require_once __DIR__ . '/../classes/Logger.php';
 
 try {
@@ -30,13 +31,25 @@ try {
 	case 'GET':
 		// Получение статуса обновлений
 		$status = $manager->getStatus();
+		$baseDir = dirname(__DIR__, 2);
+		$importer = new OperationsImporter($baseDir);
+		$status['import_operations_available'] = $importer->isFileAvailable();
 		echo json_encode($status, JSON_UNESCAPED_UNICODE);
 		break;
 
 	case 'POST':
-		// Применение обновлений
-		$data = json_decode(file_get_contents('php://input'), true);
+		// Применение обновлений или импорт данных
+		$data = json_decode(file_get_contents('php://input'), true) ?? [];
 		$migrationName = $data['migration'] ?? null;
+		$action = $data['action'] ?? null;
+
+		if ($action === 'import_operations') {
+			$baseDir = dirname(__DIR__, 2);
+			$importer = new OperationsImporter($baseDir);
+			$result = $importer->import();
+			echo json_encode($result, JSON_UNESCAPED_UNICODE);
+			exit;
+		}
 
 		if ($migrationName) {
 			// Применение конкретного обновления

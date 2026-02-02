@@ -17,6 +17,7 @@ const OperationsPage = {
 							<th class="sortable" data-column="number">Номер</th>
 							<th class="sortable" data-column="description">Описание</th>
 							<th class="sortable" data-column="unit_name">Единица измерения</th>
+							<th class="sortable" data-column="material_marks">Марки материалов</th>
 							<th class="sortable" data-column="cost">Стоимость (руб/ед)</th>
 							<th>Действия</th>
 						</tr>
@@ -60,6 +61,9 @@ const OperationsPage = {
 			} else if (column === 'cost') {
 				aVal = parseFloat(aVal) || 0;
 				bVal = parseFloat(bVal) || 0;
+			} else if (column === 'material_marks') {
+				aVal = (a.material_marks || '').toString().toLowerCase();
+				bVal = (b.material_marks || '').toString().toLowerCase();
 			} else {
 				// Для текстовых столбцов
 				aVal = (aVal || '').toString().toLowerCase();
@@ -80,7 +84,7 @@ const OperationsPage = {
 		headers.forEach(header => {
 			const column = header.dataset.column;
 			header.classList.remove('sorted-asc', 'sorted-desc');
-			
+
 			if (this.currentSort.column === column) {
 				header.classList.add(this.currentSort.direction === 'asc' ? 'sorted-asc' : 'sorted-desc');
 			}
@@ -96,7 +100,7 @@ const OperationsPage = {
 		// Применяем текущую сортировку (без переключения направления)
 		const column = this.currentSort.column;
 		const direction = this.currentSort.direction;
-		
+
 		this.operations.sort((a, b) => {
 			let aVal = a[column];
 			let bVal = b[column];
@@ -108,6 +112,9 @@ const OperationsPage = {
 			} else if (column === 'cost') {
 				aVal = parseFloat(aVal) || 0;
 				bVal = parseFloat(bVal) || 0;
+			} else if (column === 'material_marks') {
+				aVal = (a.material_marks || '').toString().toLowerCase();
+				bVal = (b.material_marks || '').toString().toLowerCase();
 			} else {
 				// Для текстовых столбцов
 				aVal = (aVal || '').toString().toLowerCase();
@@ -132,11 +139,13 @@ const OperationsPage = {
 		tbody.innerHTML = '';
 
 		this.operations.forEach(operation => {
+			const materialMarks = operation.material_marks || '-';
 			const row = document.createElement('tr');
 			row.innerHTML = `
 				<td>${operation.number}</td>
 				<td>${operation.description}</td>
 				<td>${operation.unit_name || '-'}</td>
+				<td>${materialMarks}</td>
 				<td>${parseFloat(operation.cost).toFixed(2)}</td>
 				<td>
 					<div class="action-buttons">
@@ -155,8 +164,10 @@ const OperationsPage = {
 	},
 
 	async edit(id) {
-		const operation = await API.getOperation(id);
-		const units = await API.getUnits();
+		const [operation, units] = await Promise.all([
+			API.getOperation(id),
+			API.getUnits()
+		]);
 		this.showForm(operation, units);
 	},
 
@@ -188,6 +199,10 @@ const OperationsPage = {
 							</select>
 						</div>
 						<div class="form-group">
+							<label for="operationMaterialMarks">Марки материалов</label>
+							<input type="text" id="operationMaterialMarks" value="${operation ? (operation.material_marks || '') : ''}">
+						</div>
+						<div class="form-group">
 							<label for="operationCost">Стоимость (руб/ед) *</label>
 							<input type="number" id="operationCost" step="0.01" value="${operation ? operation.cost : ''}" required>
 						</div>
@@ -208,12 +223,15 @@ const OperationsPage = {
 		const description = document.getElementById('operationDescription').value;
 		const unitId = document.getElementById('operationUnit').value || null;
 		const cost = parseFloat(document.getElementById('operationCost').value);
+		const materialMarks = (document.getElementById('operationMaterialMarks')?.value || '').trim();
 
 		try {
+			const payload = { number, description, unit_id: unitId ? parseInt(unitId) : null, cost, material_marks: materialMarks };
 			if (id) {
-				await API.updateOperation({ id: parseInt(id), number, description, unit_id: unitId ? parseInt(unitId) : null, cost });
+				payload.id = parseInt(id);
+				await API.updateOperation(payload);
 			} else {
-				await API.createOperation({ number, description, unit_id: unitId ? parseInt(unitId) : null, cost });
+				await API.createOperation(payload);
 			}
 			document.querySelector('.modal').remove();
 			await this.loadOperations();
@@ -235,25 +253,25 @@ const OperationsPage = {
 };
 
 // Добавляем методы в API
-API.getOperation = async function(id) {
+API.getOperation = async function (id) {
 	return this.request(`/operations.php?id=${id}`);
 };
 
-API.createOperation = async function(data) {
+API.createOperation = async function (data) {
 	return this.request('/operations.php', {
 		method: 'POST',
 		body: data,
 	});
 };
 
-API.updateOperation = async function(data) {
+API.updateOperation = async function (data) {
 	return this.request('/operations.php', {
 		method: 'PUT',
 		body: data,
 	});
 };
 
-API.deleteOperation = async function(id) {
+API.deleteOperation = async function (id) {
 	return this.request(`/operations.php?id=${id}`, {
 		method: 'DELETE',
 	});

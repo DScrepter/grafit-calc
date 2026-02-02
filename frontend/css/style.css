@@ -325,6 +325,11 @@ body {
 .form-group select {
 	width: 100%;
 	padding: 8px;
+}
+
+.form-group select[multiple] {
+	min-height: 100px;
+	resize: vertical;
 	border: 1px solid #ddd;
 	border-radius: 4px;
 	font-size: 14px;
@@ -506,6 +511,42 @@ body {
 	padding: 10px;
 	border: 1px solid #ddd;
 	border-radius: 4px;
+}
+
+/* Модалка выбора операции — шапка с фильтрами */
+.modal-header-operations {
+	flex-direction: column;
+	align-items: stretch;
+	gap: 15px;
+}
+
+.modal-header-operations .modal-header-top {
+	display: flex;
+	justify-content: space-between;
+	align-items: center;
+}
+
+.modal-header-filters {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	gap: 15px;
+}
+
+.modal-header-filters .operation-search-sticky {
+	flex: 1;
+	min-width: 200px;
+	margin-bottom: 0;
+}
+
+.modal-header-filters .operation-search-sticky input {
+	min-width: 200px;
+}
+
+.modal-body-operations {
+	max-height: 50vh;
+	overflow-y: auto;
+	padding: 20px;
 }
 
 /* Операции в калькуляторе */

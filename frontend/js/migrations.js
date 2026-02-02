@@ -32,7 +32,7 @@ const MigrationsPage = {
 			this.status = await API.getMigrationsStatus();
 			this.renderStatus();
 		} catch (error) {
-			document.getElementById('migrationsStatus').innerHTML = 
+			document.getElementById('migrationsStatus').innerHTML =
 				'<div class="error-message">Ошибка загрузки: ' + error.message + '</div>';
 		}
 	},
@@ -42,7 +42,7 @@ const MigrationsPage = {
 		const actionsContainer = document.getElementById('migrationsActions');
 
 		let html = '<div class="migrations-status">';
-		
+
 		// Общая информация
 		html += '<div class="status-summary">';
 		html += `<div class="status-item"><strong>Всего обновлений:</strong> ${this.status.total_available}</div>`;
@@ -55,13 +55,13 @@ const MigrationsPage = {
 			html += '<div class="pending-migrations">';
 			html += '<h3>Ожидающие обновления:</h3>';
 			html += '<ul class="migrations-list">';
-			
+
 			const pendingInfo = this.status.pending_info || [];
 			this.status.pending.forEach((migration, index) => {
 				const info = pendingInfo[index] || { is_dangerous: false, description: '' };
 				const dangerClass = info.is_dangerous ? 'dangerous' : '';
 				const dangerBadge = info.is_dangerous ? '<span class="danger-badge">⚠ Опасная операция</span>' : '<span class="safe-badge">✓ Безопасная</span>';
-				
+
 				html += `<li class="${dangerClass}">
 					<div class="migration-details">
 						<span class="migration-name">${this.escapeHtml(migration)}</span>
@@ -92,6 +92,17 @@ const MigrationsPage = {
 			html += '</div>';
 		}
 
+		// Импорт данных
+		html += '<div class="data-import-section" style="margin-top: 30px; padding-top: 20px; border-top: 1px solid #eee;">';
+		html += '<h3>Импорт данных</h3>';
+		if (this.status.import_operations_available) {
+			html += '<p style="margin: 10px 0;">Импорт операций из файла <code>Расценки_новые_2025_только_для_изделий.xls</code></p>';
+			html += '<button class="btn btn-primary" onclick="MigrationsPage.importOperations()">Импортировать операции из XLS</button>';
+		} else {
+			html += '<p style="margin: 10px 0; color: #666;">Поместите файл <code>Расценки_новые_2025_только_для_изделий.xls</code> в корень проекта для импорта операций.</p>';
+		}
+		html += '</div>';
+
 		html += '</div>';
 		container.innerHTML = html;
 
@@ -117,13 +128,13 @@ const MigrationsPage = {
 	async applyAll() {
 		const pendingInfo = this.status.pending_info || [];
 		const hasDangerous = pendingInfo.some(info => info.is_dangerous);
-		
+
 		let confirmMsg = `Вы уверены, что хотите применить все ${this.status.pending.length} ожидающие обновления?`;
 		if (hasDangerous) {
 			confirmMsg += '\n\n⚠ ВНИМАНИЕ: Среди обновлений есть операции, которые могут изменить или удалить данные!\n\nРекомендуется сделать резервную копию базы данных перед применением.';
 		}
 		confirmMsg += '\n\nВсе обновления применяются в транзакциях - при ошибке изменения будут откачены.';
-		
+
 		if (!confirm(confirmMsg)) {
 			return;
 		}
@@ -150,13 +161,36 @@ const MigrationsPage = {
 		}
 	},
 
+	async importOperations() {
+		if (!confirm('Импортировать операции из файла Расценки_новые_2025_только_для_изделий.xls?\n\nСуществующие операции с такими же номерами будут пропущены.')) {
+			return;
+		}
+		try {
+			const result = await API.importOperationsFromXls();
+			if (result.success) {
+				let msg = result.message;
+				if (result.errors && result.errors.length > 0) {
+					msg += '\n\nПредупреждения:\n' + result.errors.slice(0, 10).join('\n');
+					if (result.errors.length > 10) {
+						msg += '\n... и ещё ' + (result.errors.length - 10);
+					}
+				}
+				alert(msg);
+			} else {
+				alert('Ошибка: ' + (result.message || result.errors?.join('\n') || 'Неизвестная ошибка'));
+			}
+		} catch (error) {
+			alert('Ошибка импорта: ' + error.message);
+		}
+	},
+
 	async applySingle(migrationName, isDangerous = false) {
 		let confirmMsg = `Применить обновление "${migrationName}"?`;
 		if (isDangerous) {
 			confirmMsg += '\n\n⚠ ВНИМАНИЕ: Это обновление содержит операции, которые могут изменить или удалить данные!\n\nРекомендуется сделать резервную копию базы данных перед применением.';
 		}
 		confirmMsg += '\n\nОбновление применяется в транзакции - при ошибке изменения будут откачены.';
-		
+
 		if (!confirm(confirmMsg)) {
 			return;
 		}

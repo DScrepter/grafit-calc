@@ -47,6 +47,7 @@ try {
 		$description = $data['description'] ?? '';
 		$unitId = $data['unit_id'] ?? null;
 		$cost = $data['cost'] ?? 0;
+		$materialMarks = trim((string) ($data['material_marks'] ?? ''));
 
 		if (empty($number) || empty($description)) {
 			http_response_code(400);
@@ -54,7 +55,7 @@ try {
 			exit;
 		}
 
-		$id = $manager->create($number, $description, $unitId, $cost);
+		$id = $manager->create($number, $description, $unitId, $cost, $materialMarks);
 		echo json_encode(['success' => true, 'id' => $id]);
 		break;
 
@@ -65,6 +66,7 @@ try {
 		$description = $data['description'] ?? '';
 		$unitId = $data['unit_id'] ?? null;
 		$cost = $data['cost'] ?? 0;
+		$materialMarks = trim((string) ($data['material_marks'] ?? ''));
 
 		if (!$id || empty($number) || empty($description)) {
 			http_response_code(400);
@@ -72,7 +74,7 @@ try {
 			exit;
 		}
 
-		$result = $manager->update($id, $number, $description, $unitId, $cost);
+		$result = $manager->update($id, $number, $description, $unitId, $cost, $materialMarks);
 		if ($result) {
 			echo json_encode(['success' => true]);
 		} else {

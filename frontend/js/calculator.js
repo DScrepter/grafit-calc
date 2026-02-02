@@ -673,46 +673,62 @@ const CalculatorPage = {
 const OperationsDialog = {
 	selectedOperation: null,
 	complexityCoefficient: 1.0,
+	allOperations: [],
 
 	async open() {
 		return new Promise((resolve) => {
 			this.resolve = resolve;
 			const dialog = document.getElementById('operationDialog');
 			dialog.style.display = 'flex';
+			document.getElementById('operationSearch').value = '';
 			this.loadOperations();
+		});
+	},
+
+	applyFilters() {
+		const tbody = document.querySelector('#operationsDialogTable tbody');
+		const search = (document.getElementById('operationSearch').value || '').toLowerCase();
+
+		Array.from(tbody.children).forEach(row => {
+			const matchesSearch = !search || (
+				(row.dataset.description || '').toLowerCase().includes(search) ||
+				(row.dataset.materialMarks || '').toLowerCase().includes(search)
+			);
+			row.style.display = matchesSearch ? '' : 'none';
 		});
 	},
 
 	async loadOperations() {
 		const operations = await API.getOperations();
-		const tbody = document.querySelector('#operationsTable tbody');
+		this.allOperations = operations;
+
+		const tbody = document.querySelector('#operationsDialogTable tbody');
 		tbody.innerHTML = '';
 
 		operations.forEach(op => {
+			const materialMarks = op.material_marks || '';
 			const row = document.createElement('tr');
 			row.dataset.operationId = op.id;
+			row.dataset.description = op.description || '';
+			row.dataset.materialMarks = materialMarks;
 			row.innerHTML = `
 				<td>${op.number}</td>
 				<td>${op.description}</td>
+				<td>${materialMarks || '-'}</td>
 				<td>${op.unit_name || '-'}</td>
 				<td>${parseFloat(op.cost).toFixed(2)}</td>
 			`;
 			row.addEventListener('click', () => {
-				document.querySelectorAll('#operationsTable tbody tr').forEach(r => r.classList.remove('selected'));
+				document.querySelectorAll('#operationsDialogTable tbody tr').forEach(r => r.classList.remove('selected'));
 				row.classList.add('selected');
 				this.selectedOperation = op;
 			});
 			tbody.appendChild(row);
 		});
 
-		// Поиск
-		document.getElementById('operationSearch').addEventListener('input', (e) => {
-			const search = e.target.value.toLowerCase();
-			Array.from(tbody.children).forEach(row => {
-				const text = row.textContent.toLowerCase();
-				row.style.display = text.includes(search) ? '' : 'none';
-			});
-		});
+		const self = this;
+		document.getElementById('operationSearch').oninput = () => self.applyFilters();
+		this.applyFilters();
 	},
 
 	close() {

@@ -688,6 +688,13 @@ class API {
 		});
 	}
 
+	static async importOperationsFromXls() {
+		return this.request('/migrations.php', {
+			method: 'POST',
+			body: { action: 'import_operations' },
+		});
+	}
+
 	// Пользователи
 	static async getUsers() {
 		return this.request('/users.php');
