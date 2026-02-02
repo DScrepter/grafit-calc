@@ -133,11 +133,11 @@ class PDFGenerator {
 			$this->pdf->Ln(3);
 			
 			$this->pdf->Cell(100, 6, 'Объем заготовки:', 0, 0);
-			$this->pdf->Cell(0, 6, number_format($result['workpiece_volume'] ?? 0, 2, '.', ' ') . ' мм³', 0, 1);
+			$this->pdf->Cell(0, 6, number_format(($result['workpiece_volume'] ?? 0) / 1000, 2, '.', ' ') . ' см³', 0, 1);
 			$this->pdf->Cell(100, 6, 'Объем изделия:', 0, 0);
-			$this->pdf->Cell(0, 6, number_format($result['product_volume'] ?? 0, 2, '.', ' ') . ' мм³', 0, 1);
+			$this->pdf->Cell(0, 6, number_format(($result['product_volume'] ?? 0) / 1000, 2, '.', ' ') . ' см³', 0, 1);
 			$this->pdf->Cell(100, 6, 'Объем отходов:', 0, 0);
-			$this->pdf->Cell(0, 6, number_format($result['waste_volume'] ?? 0, 2, '.', ' ') . ' мм³', 0, 1);
+			$this->pdf->Cell(0, 6, number_format(($result['waste_volume'] ?? 0) / 1000, 2, '.', ' ') . ' см³', 0, 1);
 			$this->pdf->Cell(100, 6, 'Масса заготовки:', 0, 0);
 			$this->pdf->Cell(0, 6, number_format($result['workpiece_mass'] ?? 0, 4, '.', ' ') . ' кг', 0, 1);
 			$this->pdf->Cell(100, 6, 'Масса изделия:', 0, 0);
@@ -150,24 +150,22 @@ class PDFGenerator {
 			$this->pdf->Cell(100, 6, 'Зарплата (операции):', 0, 0);
 			$this->pdf->Cell(0, 6, number_format($salaryDisplay, 2, '.', ' ') . ' руб', 0, 1);
 			
-			if (!empty($result['coefficients'])) {
+			if (!empty($result['coefficients']) || isset($result['ohr_cost'])) {
 				$this->pdf->Ln(3);
 				$this->pdf->SetFont('dejavusans', 'B', 10);
-				$this->pdf->Cell(0, 6, 'Коэффициенты (налоги):', 0, 1);
+				$this->pdf->Cell(0, 6, 'Коэффициенты / налоги:', 0, 1);
 				$this->pdf->SetFont('dejavusans', '', 10);
-				
-				foreach ($result['coefficients'] as $coef) {
+
+				foreach ($result['coefficients'] ?? [] as $coef) {
 					$coefText = $coef['name'] . ' (' . $coef['value'] . '%):';
 					$this->pdf->Cell(100, 6, $coefText, 0, 0);
 					$this->pdf->Cell(0, 6, number_format($coef['amount'] ?? 0, 2, '.', ' ') . ' руб', 0, 1);
 				}
-				$this->pdf->Cell(100, 6, 'Итого коэффициенты:', 0, 0);
-				$this->pdf->Cell(0, 6, number_format($result['coefficients_cost'] ?? 0, 2, '.', ' ') . ' руб', 0, 1);
-			}
-			
-			if (isset($result['ohr_cost'])) {
-				$this->pdf->Cell(100, 6, 'ОХР (коэф. массы ' . ($result['mass_coefficient'] ?? '') . '):', 0, 0);
-				$this->pdf->Cell(0, 6, number_format($result['ohr_cost'], 2, '.', ' ') . ' руб', 0, 1);
+				if (isset($result['ohr_cost'])) {
+					$ohrLabel = isset($result['ohr_coefficient']) ? 'ОХР (K = ' . $result['ohr_coefficient'] . '):' : 'ОХР:';
+					$this->pdf->Cell(100, 6, $ohrLabel, 0, 0);
+					$this->pdf->Cell(0, 6, number_format($result['ohr_cost'], 2, '.', ' ') . ' руб', 0, 1);
+				}
 			}
 			
 			$this->pdf->Ln(5);
@@ -177,7 +175,8 @@ class PDFGenerator {
 			$this->pdf->Cell(0, 8, 'Общая себестоимость: ' . number_format($result['total_cost_without_packaging'] ?? 0, 2, '.', ' ') . ' руб', 0, 1);
 			if (isset($result['total_cost_with_margin'])) {
 				$this->pdf->SetFont('dejavusans', 'B', 14);
-				$this->pdf->Cell(0, 8, 'Итого с маржой 40%: ' . number_format($result['total_cost_with_margin'], 2, '.', ' ') . ' руб', 0, 1);
+				$marginPct = $result['margin_percent'] ?? 40;
+				$this->pdf->Cell(0, 8, 'Итого с маржой ' . $marginPct . '%: ' . number_format($result['total_cost_with_margin'], 2, '.', ' ') . ' руб', 0, 1);
 			}
 			$this->pdf->SetFont('dejavusans', '', 10);
 		}

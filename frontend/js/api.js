@@ -436,15 +436,15 @@ class API {
 				<table style="width: 100%; border-collapse: collapse; margin-top: 10px; border: 1px solid rgb(221, 221, 221);">
 					<tr>
 						<td style="padding: 8px; border: 1px solid rgb(221, 221, 221); color: rgb(0, 0, 0);">Объем заготовки</td>
-						<td style="padding: 8px; border: 1px solid rgb(221, 221, 221); color: rgb(0, 0, 0);">${this.formatNumber(result.workpiece_volume || 0, 2)} мм³</td>
+						<td style="padding: 8px; border: 1px solid rgb(221, 221, 221); color: rgb(0, 0, 0);">${this.formatNumber((result.workpiece_volume || 0) / 1000, 2)} см³</td>
 					</tr>
 					<tr>
 						<td style="padding: 8px; border: 1px solid rgb(221, 221, 221); color: rgb(0, 0, 0);">Объем изделия</td>
-						<td style="padding: 8px; border: 1px solid rgb(221, 221, 221); color: rgb(0, 0, 0);">${this.formatNumber(result.product_volume || 0, 2)} мм³</td>
+						<td style="padding: 8px; border: 1px solid rgb(221, 221, 221); color: rgb(0, 0, 0);">${this.formatNumber((result.product_volume || 0) / 1000, 2)} см³</td>
 					</tr>
 					<tr>
 						<td style="padding: 8px; border: 1px solid rgb(221, 221, 221); color: rgb(0, 0, 0);">Объем отходов</td>
-						<td style="padding: 8px; border: 1px solid rgb(221, 221, 221); color: rgb(0, 0, 0);">${this.formatNumber(result.waste_volume || 0, 2)} мм³</td>
+						<td style="padding: 8px; border: 1px solid rgb(221, 221, 221); color: rgb(0, 0, 0);">${this.formatNumber((result.waste_volume || 0) / 1000, 2)} см³</td>
 					</tr>
 					<tr>
 						<td style="padding: 8px; border: 1px solid rgb(221, 221, 221); color: rgb(0, 0, 0);">Масса заготовки</td>
@@ -467,31 +467,27 @@ class API {
 						<td style="padding: 8px; border: 1px solid rgb(221, 221, 221); color: rgb(0, 0, 0);">${this.formatNumber(result.salary_with_quantity_coef ?? result.total_operations_cost ?? 0, 2)} руб</td>
 					</tr>`;
 
-			if (result.coefficients && result.coefficients.length > 0) {
+			if ((result.coefficients && result.coefficients.length > 0) || result.ohr_cost !== undefined) {
 				html += `
 					<tr>
-						<td colspan="2" style="padding: 8px; border: 1px solid rgb(221, 221, 221); color: rgb(0, 0, 0); font-weight: bold;">Коэффициенты (налоги):</td>
+						<td colspan="2" style="padding: 8px; border: 1px solid rgb(221, 221, 221); color: rgb(0, 0, 0); font-weight: bold;">Коэффициенты / налоги:</td>
 					</tr>`;
-				result.coefficients.forEach(coef => {
-					html += `
+				if (result.coefficients && result.coefficients.length > 0) {
+					result.coefficients.forEach(coef => {
+						html += `
 					<tr>
 						<td style="padding: 8px; border: 1px solid rgb(221, 221, 221); color: rgb(0, 0, 0);">${this.escapeHtml(coef.name)} (${coef.value}%)</td>
 						<td style="padding: 8px; border: 1px solid rgb(221, 221, 221); color: rgb(0, 0, 0);">${this.formatNumber(coef.amount || 0, 2)} руб</td>
 					</tr>`;
-				});
-				html += `
+					});
+				}
+				if (result.ohr_cost !== undefined) {
+					html += `
 					<tr>
-						<td style="padding: 8px; border: 1px solid rgb(221, 221, 221); color: rgb(0, 0, 0);">Итого коэффициенты</td>
-						<td style="padding: 8px; border: 1px solid rgb(221, 221, 221); color: rgb(0, 0, 0);">${this.formatNumber(result.coefficients_cost || 0, 2)} руб</td>
-					</tr>`;
-			}
-
-			if (result.ohr_cost !== undefined) {
-				html += `
-					<tr>
-						<td style="padding: 8px; border: 1px solid rgb(221, 221, 221); color: rgb(0, 0, 0);">ОХР (коэф. массы ${result.mass_coefficient ?? ''})</td>
+						<td style="padding: 8px; border: 1px solid rgb(221, 221, 221); color: rgb(0, 0, 0);">${result.ohr_coefficient != null ? 'ОХР (K = ' + result.ohr_coefficient + ')' : 'ОХР'}</td>
 						<td style="padding: 8px; border: 1px solid rgb(221, 221, 221); color: rgb(0, 0, 0);">${this.formatNumber(result.ohr_cost, 2)} руб</td>
 					</tr>`;
+				}
 			}
 
 			html += `
@@ -502,7 +498,7 @@ class API {
 			if (result.total_cost_with_margin !== undefined) {
 				html += `
 				<div style="font-size: 18px; font-weight: bold; color: rgb(0, 0, 0); margin-top: 8px;">
-					Итого с маржой 40%: ${this.formatNumber(result.total_cost_with_margin, 2)} руб
+					Итого с маржой ${(result.margin_percent != null ? result.margin_percent : 40)}%: ${this.formatNumber(result.total_cost_with_margin, 2)} руб
 				</div>`;
 			}
 			html += `

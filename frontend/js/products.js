@@ -167,13 +167,13 @@ const ProductsPage = {
 			html += '<tbody>';
 
 			if (result.workpiece_volume !== undefined) {
-				html += '<tr><td>Объем заготовки</td><td>' + this.formatNumber(result.workpiece_volume) + ' мм³</td></tr>';
+				html += '<tr><td>Объем заготовки</td><td>' + this.formatNumber(result.workpiece_volume / 1000) + ' см³</td></tr>';
 			}
 			if (result.product_volume !== undefined) {
-				html += '<tr><td>Объем изделия</td><td>' + this.formatNumber(result.product_volume) + ' мм³</td></tr>';
+				html += '<tr><td>Объем изделия</td><td>' + this.formatNumber(result.product_volume / 1000) + ' см³</td></tr>';
 			}
 			if (result.waste_volume !== undefined) {
-				html += '<tr><td>Объем отходов</td><td>' + this.formatNumber(result.waste_volume) + ' мм³</td></tr>';
+				html += '<tr><td>Объем отходов</td><td>' + this.formatNumber(result.waste_volume / 1000) + ' см³</td></tr>';
 			}
 			if (result.workpiece_mass !== undefined) {
 				html += '<tr><td>Масса заготовки</td><td>' + this.formatNumber(result.workpiece_mass, 4) + ' кг</td></tr>';
@@ -192,22 +192,21 @@ const ProductsPage = {
 				html += '<tr><td>Зарплата (операции)</td><td>' + this.formatNumber(salaryDisplay) + ' руб</td></tr>';
 			}
 
-			// Коэффициенты (налоги)
-			if (result.coefficients && result.coefficients.length > 0) {
-				html += '<tr><td colspan="2"><strong>Коэффициенты (налоги):</strong></td></tr>';
-				result.coefficients.forEach(coef => {
-					html += '<tr>';
-					html += '<td>' + this.escapeHtml(coef.name) + ' (' + coef.value + '%)</td>';
-					html += '<td>' + this.formatNumber(coef.amount || 0) + ' руб</td>';
-					html += '</tr>';
-				});
-				if (result.coefficients_cost !== undefined) {
-					html += '<tr><td><strong>Итого коэффициенты</strong></td><td><strong>' + this.formatNumber(result.coefficients_cost) + ' руб</strong></td></tr>';
+			// Коэффициенты / налоги
+			if ((result.coefficients && result.coefficients.length > 0) || result.ohr_cost !== undefined) {
+				html += '<tr><td colspan="2"><strong>Коэффициенты / налоги:</strong></td></tr>';
+				if (result.coefficients && result.coefficients.length > 0) {
+					result.coefficients.forEach(coef => {
+						html += '<tr>';
+						html += '<td>' + this.escapeHtml(coef.name) + ' (' + coef.value + '%)</td>';
+						html += '<td>' + this.formatNumber(coef.amount || 0) + ' руб</td>';
+						html += '</tr>';
+					});
 				}
-			}
-
-			if (result.ohr_cost !== undefined) {
-				html += '<tr><td>ОХР (коэф. массы ' + (result.mass_coefficient ?? '') + ')</td><td>' + this.formatNumber(result.ohr_cost) + ' руб</td></tr>';
+				if (result.ohr_cost !== undefined) {
+					const ohrLabel = result.ohr_coefficient != null ? 'ОХР (K = ' + result.ohr_coefficient + ')' : 'ОХР';
+					html += '<tr><td>' + ohrLabel + '</td><td>' + this.formatNumber(result.ohr_cost) + ' руб</td></tr>';
+				}
 			}
 
 			html += '</tbody></table>';

@@ -1,23 +1,23 @@
 /**
- * Страница управления коэффициентами
+ * Страница управления коэффициентами (фиксированный набор: N, Kz_порог, Kz, K, M)
  */
+
+const FIXED_COEFFICIENT_NAMES = ['N', 'Kz_порог', 'Kz', 'K', 'M'];
+const DISPLAY_ORDER = ['N', 'Kz_порог', 'Kz', 'K', 'M'];
 
 const CoefficientsPage = {
 	coefficients: [],
-	currentSort: { column: null, direction: 'asc' },
 
 	async load(container) {
 		container.innerHTML = `
 			<div class="page-content">
 				<h1 class="page-title">Справочник коэффициентов</h1>
-				<button class="btn btn-primary mb-20" onclick="CoefficientsPage.showAddForm()">Добавить коэффициент</button>
 				<table class="data-table" id="coefficientsTable">
 					<thead>
 						<tr>
-							<th class="sortable" data-column="id">ID</th>
-							<th class="sortable" data-column="name">Название</th>
-							<th class="sortable" data-column="value">Значение (%)</th>
-							<th class="sortable" data-column="description">Описание</th>
+							<th>Название</th>
+							<th>Значение</th>
+							<th>Описание</th>
 							<th>Действия</th>
 						</tr>
 					</thead>
@@ -27,154 +27,91 @@ const CoefficientsPage = {
 		`;
 
 		await this.loadCoefficients();
-		this.setupSorting();
-	},
-
-	setupSorting() {
-		const headers = document.querySelectorAll('#coefficientsTable th.sortable');
-		headers.forEach(header => {
-			header.style.cursor = 'pointer';
-			header.addEventListener('click', () => {
-				const column = header.dataset.column;
-				this.sortBy(column);
-			});
-		});
-	},
-
-	sortBy(column) {
-		if (this.currentSort.column === column) {
-			this.currentSort.direction = this.currentSort.direction === 'asc' ? 'desc' : 'asc';
-		} else {
-			this.currentSort.column = column;
-			this.currentSort.direction = 'asc';
-		}
-
-		this.coefficients.sort((a, b) => {
-			let aVal = a[column];
-			let bVal = b[column];
-
-			if (column === 'id' || column === 'value') {
-				aVal = parseFloat(aVal) || 0;
-				bVal = parseFloat(bVal) || 0;
-			} else {
-				aVal = (aVal || '').toString().toLowerCase();
-				bVal = (bVal || '').toString().toLowerCase();
-			}
-
-			if (aVal < bVal) return this.currentSort.direction === 'asc' ? -1 : 1;
-			if (aVal > bVal) return this.currentSort.direction === 'asc' ? 1 : -1;
-			return 0;
-		});
-
-		this.renderCoefficients();
-		this.updateSortIndicators();
-	},
-
-	updateSortIndicators() {
-		const headers = document.querySelectorAll('#coefficientsTable th.sortable');
-		headers.forEach(header => {
-			const column = header.dataset.column;
-			header.classList.remove('sorted-asc', 'sorted-desc');
-			
-			if (this.currentSort.column === column) {
-				header.classList.add(this.currentSort.direction === 'asc' ? 'sorted-asc' : 'sorted-desc');
-			}
-		});
 	},
 
 	async loadCoefficients() {
-		this.coefficients = await API.getCoefficients();
-		if (!this.currentSort.column) {
-			this.currentSort = { column: 'id', direction: 'asc' };
-		}
-		
-		const column = this.currentSort.column;
-		const direction = this.currentSort.direction;
-		
-		this.coefficients.sort((a, b) => {
-			let aVal = a[column];
-			let bVal = b[column];
-
-			if (column === 'id' || column === 'value') {
-				aVal = parseFloat(aVal) || 0;
-				bVal = parseFloat(bVal) || 0;
-			} else {
-				aVal = (aVal || '').toString().toLowerCase();
-				bVal = (bVal || '').toString().toLowerCase();
-			}
-
-			if (aVal < bVal) return direction === 'asc' ? -1 : 1;
-			if (aVal > bVal) return direction === 'asc' ? 1 : -1;
-			return 0;
-		});
-
+		const all = await API.getCoefficients();
+		this.coefficients = all.filter(c => FIXED_COEFFICIENT_NAMES.includes(c.name));
+		this.coefficients.sort((a, b) => DISPLAY_ORDER.indexOf(a.name) - DISPLAY_ORDER.indexOf(b.name));
 		this.renderCoefficients();
-		this.updateSortIndicators();
+	},
+
+	getCoefficientByName(name) {
+		return this.coefficients.find(c => c.name === name) || null;
 	},
 
 	renderCoefficients() {
 		const tbody = document.querySelector('#coefficientsTable tbody');
-		if (!tbody) {
-			console.error('Не найден элемент #coefficientsTable tbody');
-			return;
-		}
+		if (!tbody) return;
 		tbody.innerHTML = '';
 
-		this.coefficients.forEach(coef => {
-			const row = document.createElement('tr');
-			row.innerHTML = `
-				<td>${coef.id}</td>
-				<td>${coef.name}</td>
-				<td>${parseFloat(coef.value).toFixed(2)}</td>
-				<td>${coef.description || '-'}</td>
-				<td>
-					<div class="action-buttons">
-						<button class="btn btn-small btn-primary" onclick="CoefficientsPage.edit(${coef.id})" title="Редактировать">✏️</button>
-						<button class="btn btn-small btn-danger" onclick="CoefficientsPage.delete(${coef.id})" title="Удалить">🗑</button>
-					</div>
-				</td>
-			`;
-			tbody.appendChild(row);
-		});
+		// N
+		const coefN = this.getCoefficientByName('N');
+		if (coefN) {
+			tbody.appendChild(this.buildRow('Налоги на зарплату (N)', parseFloat(coefN.value).toFixed(2) + ' %', coefN.description, () => this.showFormSingle(coefN, 'Значение (%)')));
+		}
+
+		// Kz_порог + Kz — одна строка
+		const coefKzPorog = this.getCoefficientByName('Kz_порог');
+		const coefKz = this.getCoefficientByName('Kz');
+		if (coefKzPorog && coefKz) {
+			const valueText = 'Порог: ' + parseFloat(coefKzPorog.value) + ' шт, Kz: ' + parseFloat(coefKz.value).toFixed(2);
+			tbody.appendChild(this.buildRow('Повышающий коэффициент (порог / Kz)', valueText, coefKz.description || coefKzPorog.description, () => this.showFormKz(coefKzPorog, coefKz)));
+		}
+
+		// K
+		const coefK = this.getCoefficientByName('K');
+		if (coefK) {
+			tbody.appendChild(this.buildRow('Коэффициент для расчёта ОХР (K)', parseFloat(coefK.value).toFixed(2), coefK.description, () => this.showFormSingle(coefK, 'Значение')));
+		}
+
+		// M
+		const coefM = this.getCoefficientByName('M');
+		if (coefM) {
+			tbody.appendChild(this.buildRow('Маржинальность (M)', parseFloat(coefM.value).toFixed(2) + ' %', coefM.description, () => this.showFormSingle(coefM, 'Значение (%)')));
+		}
 	},
 
-	async showAddForm() {
-		this.showForm();
+	buildRow(label, valueText, description, onEdit) {
+		const row = document.createElement('tr');
+		row.innerHTML = `
+			<td>${label}</td>
+			<td>${valueText}</td>
+			<td>${description || '-'}</td>
+			<td>
+				<div class="action-buttons">
+					<button class="btn btn-small btn-primary" title="Редактировать">✏️</button>
+				</div>
+			</td>
+		`;
+		row.querySelector('button').addEventListener('click', onEdit);
+		return row;
 	},
 
-	async edit(id) {
-		const coefficient = await API.getCoefficient(id);
-		this.showForm(coefficient);
-	},
-
-	showForm(coefficient = null) {
+	showFormSingle(coefficient, valueLabel) {
 		const form = document.createElement('div');
 		form.className = 'modal';
 		form.innerHTML = `
 			<div class="modal-content">
 				<div class="modal-header">
-					<h3>${coefficient ? 'Редактировать коэффициент' : 'Добавить коэффициент'}</h3>
+					<h3>Редактировать: ${coefficient.name}</h3>
 					<button class="modal-close" onclick="this.closest('.modal').remove()">&times;</button>
 				</div>
 				<div class="modal-body">
 					<form id="coefficientForm">
-						<input type="hidden" id="coefficientId" value="${coefficient ? coefficient.id : ''}">
+						<input type="hidden" id="coefficientId" value="${coefficient.id}">
 						<div class="form-group">
-							<label for="coefficientName">Название *</label>
-							<input type="text" id="coefficientName" value="${coefficient ? coefficient.name : ''}" required>
-						</div>
-						<div class="form-group">
-							<label for="coefficientValue">Значение (%) *</label>
-							<input type="number" id="coefficientValue" step="0.01" value="${coefficient ? coefficient.value : ''}" required>
+							<label for="coefficientValue">${valueLabel} *</label>
+							<input type="number" id="coefficientValue" step="0.01" value="${parseFloat(coefficient.value)}" required>
 						</div>
 						<div class="form-group">
 							<label for="coefficientDescription">Описание</label>
-							<input type="text" id="coefficientDescription" value="${coefficient ? (coefficient.description || '') : ''}">
+							<input type="text" id="coefficientDescription" value="${coefficient.description || ''}">
 						</div>
 					</form>
 				</div>
 				<div class="modal-footer">
-					<button class="btn btn-primary" onclick="CoefficientsPage.save()">Сохранить</button>
+					<button class="btn btn-primary" onclick="CoefficientsPage.saveSingle(this.closest('.modal'))">Сохранить</button>
 					<button class="btn btn-secondary" onclick="this.closest('.modal').remove()">Отмена</button>
 				</div>
 			</div>
@@ -182,30 +119,69 @@ const CoefficientsPage = {
 		document.body.appendChild(form);
 	},
 
-	async save() {
-		const id = document.getElementById('coefficientId').value;
-		const name = document.getElementById('coefficientName').value;
+	showFormKz(coefKzPorog, coefKz) {
+		const form = document.createElement('div');
+		form.className = 'modal';
+		form.innerHTML = `
+			<div class="modal-content">
+				<div class="modal-header">
+					<h3>Редактировать: Повышающий коэффициент (порог / Kz)</h3>
+					<button class="modal-close" onclick="this.closest('.modal').remove()">&times;</button>
+				</div>
+				<div class="modal-body">
+					<form id="coefficientFormKz">
+						<input type="hidden" id="kzPorogId" value="${coefKzPorog.id}">
+						<input type="hidden" id="kzId" value="${coefKz.id}">
+						<div class="form-group">
+							<label for="kzPorogValue">Порог малого количества (шт) *</label>
+							<input type="number" id="kzPorogValue" step="1" min="1" value="${parseFloat(coefKzPorog.value)}" required>
+						</div>
+						<div class="form-group">
+							<label for="kzValue">Коэффициент Kz *</label>
+							<input type="number" id="kzValue" step="0.01" min="0.01" value="${parseFloat(coefKz.value)}" required>
+						</div>
+						<div class="form-group">
+							<label for="coefficientDescriptionKz">Описание</label>
+							<input type="text" id="coefficientDescriptionKz" value="${coefKz.description || ''}">
+						</div>
+					</form>
+				</div>
+				<div class="modal-footer">
+					<button class="btn btn-primary" onclick="CoefficientsPage.saveKz(this.closest('.modal'))">Сохранить</button>
+					<button class="btn btn-secondary" onclick="this.closest('.modal').remove()">Отмена</button>
+				</div>
+			</div>
+		`;
+		document.body.appendChild(form);
+	},
+
+	async saveSingle(modal) {
+		const id = parseInt(document.getElementById('coefficientId').value);
 		const value = parseFloat(document.getElementById('coefficientValue').value);
 		const description = document.getElementById('coefficientDescription').value || null;
+		const coef = this.coefficients.find(c => c.id === id);
+		const name = coef ? coef.name : '';
 
 		try {
-			if (id) {
-				await API.updateCoefficient({ id: parseInt(id), name, value, description });
-			} else {
-				await API.createCoefficient({ name, value, description });
-			}
-			document.querySelector('.modal').remove();
+			await API.updateCoefficient({ id, name, value, description });
+			modal.remove();
 			await this.loadCoefficients();
 		} catch (error) {
 			alert('Ошибка: ' + error.message);
 		}
 	},
 
-	async delete(id) {
-		if (!confirm('Удалить коэффициент?')) return;
+	async saveKz(modal) {
+		const idPorog = parseInt(document.getElementById('kzPorogId').value);
+		const idKz = parseInt(document.getElementById('kzId').value);
+		const valuePorog = parseFloat(document.getElementById('kzPorogValue').value);
+		const valueKz = parseFloat(document.getElementById('kzValue').value);
+		const description = document.getElementById('coefficientDescriptionKz').value || null;
 
 		try {
-			await API.deleteCoefficient(id);
+			await API.updateCoefficient({ id: idPorog, name: 'Kz_порог', value: valuePorog, description });
+			await API.updateCoefficient({ id: idKz, name: 'Kz', value: valueKz, description });
+			modal.remove();
 			await this.loadCoefficients();
 		} catch (error) {
 			alert('Ошибка: ' + error.message);
@@ -214,25 +190,25 @@ const CoefficientsPage = {
 };
 
 // Добавляем методы в API
-API.getCoefficient = async function(id) {
+API.getCoefficient = async function (id) {
 	return this.request(`/coefficients.php?id=${id}`);
 };
 
-API.createCoefficient = async function(data) {
+API.createCoefficient = async function (data) {
 	return this.request('/coefficients.php', {
 		method: 'POST',
 		body: data,
 	});
 };
 
-API.updateCoefficient = async function(data) {
+API.updateCoefficient = async function (data) {
 	return this.request('/coefficients.php', {
 		method: 'PUT',
 		body: data,
 	});
 };
 
-API.deleteCoefficient = async function(id) {
+API.deleteCoefficient = async function (id) {
 	return this.request(`/coefficients.php?id=${id}`, {
 		method: 'DELETE',
 	});

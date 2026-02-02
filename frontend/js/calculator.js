@@ -44,6 +44,22 @@ const CalculatorPage = {
 						<div id="parametersContainer"></div>
 					</div>
 
+					<div class="field-group" id="massSourceGroup">
+						<div class="field-group-title">Масса заготовки</div>
+						<div class="form-row">
+							<div class="form-group">
+								<label><input type="radio" name="massSource" value="byDimensions" checked> Рассчитать по габаритам и типу изделия</label>
+							</div>
+							<div class="form-group">
+								<label><input type="radio" name="massSource" value="manual"> Указать вручную (кг)</label>
+							</div>
+							<div class="form-group" id="workpieceMassManualGroup" style="display: none;">
+								<label for="workpieceMassInput">Масса заготовки (кг)</label>
+								<input type="number" id="workpieceMassInput" min="0.001" step="0.001" placeholder="кг">
+							</div>
+						</div>
+					</div>
+
 					<div class="field-group">
 						<div class="field-group-title">Операции</div>
 						<div class="operations-list" id="operationsList"></div>
@@ -133,6 +149,15 @@ const CalculatorPage = {
 			e.preventDefault();
 			await this.calculate();
 		});
+		// Переключатель: ручная масса заготовки
+		const massSourceRadios = document.querySelectorAll('input[name="massSource"]');
+		const manualGroup = document.getElementById('workpieceMassManualGroup');
+		const toggleManualMass = () => {
+			const manual = document.querySelector('input[name="massSource"]:checked')?.value === 'manual';
+			if (manualGroup) manualGroup.style.display = manual ? 'block' : 'none';
+		};
+		massSourceRadios.forEach(r => r.addEventListener('change', toggleManualMass));
+		toggleManualMass();
 	},
 
 	operations: [],
@@ -248,15 +273,22 @@ const CalculatorPage = {
 			complexity_coefficient: op.complexity_coefficient
 		}));
 
+		const massSource = document.querySelector('input[name="massSource"]:checked')?.value;
+		const workpieceMassOverride = (massSource === 'manual') ? parseFloat(document.getElementById('workpieceMassInput')?.value) : null;
+		const requestBody = {
+			product_name: productName,
+			material_id: materialId,
+			product_type_id: productTypeId,
+			parameters: parameters,
+			operations: operations,
+			quantity: quantity
+		};
+		if (workpieceMassOverride != null && !isNaN(workpieceMassOverride) && workpieceMassOverride > 0) {
+			requestBody.workpiece_mass_override = workpieceMassOverride;
+		}
+
 		try {
-			const result = await API.calculate({
-				product_name: productName,
-				material_id: materialId,
-				product_type_id: productTypeId,
-				parameters: parameters,
-				operations: operations,
-				quantity: quantity
-			});
+			const result = await API.calculate(requestBody);
 
 			// Сохраняем текущие данные для сохранения
 			// Используем полную информацию об операциях из результата расчета
@@ -284,9 +316,9 @@ const CalculatorPage = {
 		html += '<div class="result-row"><span class="result-label">Материал:</span><span class="result-value">' + result.material_name + '</span></div>';
 		html += '<div class="result-row"><span class="result-label">Тип изделия:</span><span class="result-value">' + result.product_type_name + '</span></div>';
 		html += '<hr style="margin: 15px 0;">';
-		html += '<div class="result-row"><span class="result-label">Объем заготовки:</span><span class="result-value">' + result.workpiece_volume.toFixed(2) + ' мм³</span></div>';
-		html += '<div class="result-row"><span class="result-label">Объем изделия:</span><span class="result-value">' + result.product_volume.toFixed(2) + ' мм³</span></div>';
-		html += '<div class="result-row"><span class="result-label">Объем отходов:</span><span class="result-value">' + result.waste_volume.toFixed(2) + ' мм³</span></div>';
+		html += '<div class="result-row"><span class="result-label">Объем заготовки:</span><span class="result-value">' + (result.workpiece_volume / 1000).toFixed(2) + ' см³</span></div>';
+		html += '<div class="result-row"><span class="result-label">Объем изделия:</span><span class="result-value">' + (result.product_volume / 1000).toFixed(2) + ' см³</span></div>';
+		html += '<div class="result-row"><span class="result-label">Объем отходов:</span><span class="result-value">' + (result.waste_volume / 1000).toFixed(2) + ' см³</span></div>';
 		html += '<div class="result-row"><span class="result-label">Масса заготовки:</span><span class="result-value">' + result.workpiece_mass.toFixed(4) + ' кг</span></div>';
 		html += '<div class="result-row"><span class="result-label">Масса изделия:</span><span class="result-value">' + result.product_mass.toFixed(4) + ' кг</span></div>';
 		html += '<div class="result-row"><span class="result-label">Масса отходов:</span><span class="result-value">' + result.waste_mass.toFixed(4) + ' кг</span></div>';
@@ -296,22 +328,24 @@ const CalculatorPage = {
 		const salaryLabel = (result.quantity_coefficient === 1.5) ? 'Зарплата (операции, K=1.5 за мелкий заказ):' : 'Зарплата (операции):';
 		html += '<div class="result-row"><span class="result-label">' + salaryLabel + '</span><span class="result-value">' + salaryDisplay.toFixed(2) + ' руб</span></div>';
 
-		if (result.coefficients && result.coefficients.length > 0) {
-			html += '<div style="margin-top: 10px;"><strong>Коэффициенты (налоги):</strong></div>';
-			result.coefficients.forEach(coef => {
-				html += `<div class="result-row"><span class="result-label">${coef.name} (${coef.value}%):</span><span class="result-value">${(coef.amount ?? 0).toFixed(2)} руб</span></div>`;
-			});
-			html += '<div class="result-row"><span class="result-label">Итого коэффициенты:</span><span class="result-value">' + (result.coefficients_cost ?? 0).toFixed(2) + ' руб</span></div>';
-		}
-
-		if (result.ohr_cost !== undefined) {
-			html += '<div class="result-row"><span class="result-label">ОХР (коэф. массы ' + (result.mass_coefficient ?? '-') + '):</span><span class="result-value">' + result.ohr_cost.toFixed(2) + ' руб</span></div>';
+		if ((result.coefficients && result.coefficients.length > 0) || result.ohr_cost !== undefined) {
+			html += '<div style="margin-top: 10px;"><strong>Коэффициенты / налоги:</strong></div>';
+			if (result.coefficients && result.coefficients.length > 0) {
+				result.coefficients.forEach(coef => {
+					html += `<div class="result-row"><span class="result-label">${coef.name} (${coef.value}%):</span><span class="result-value">${(coef.amount ?? 0).toFixed(2)} руб</span></div>`;
+				});
+			}
+			if (result.ohr_cost !== undefined) {
+				const ohrLabel = (result.ohr_coefficient != null) ? 'ОХР (K = ' + result.ohr_coefficient + '):' : 'ОХР:';
+				html += '<div class="result-row"><span class="result-label">' + ohrLabel + '</span><span class="result-value">' + result.ohr_cost.toFixed(2) + ' руб</span></div>';
+			}
 		}
 
 		html += '<hr style="margin: 15px 0;">';
 		html += '<div class="result-row"><span class="result-label">Общая себестоимость:</span><span class="result-value">' + (result.total_cost_without_packaging ?? 0).toFixed(2) + ' руб</span></div>';
 		if (result.total_cost_with_margin !== undefined) {
-			html += '<div class="result-row" style="font-weight: 600;"><span class="result-label">Итого с маржой 40%:</span><span class="result-value">' + result.total_cost_with_margin.toFixed(2) + ' руб</span></div>';
+			const marginLabel = (result.margin_percent != null) ? 'Итого с маржой ' + result.margin_percent + '%:' : 'Итого с маржой:';
+			html += '<div class="result-row" style="font-weight: 600;"><span class="result-label">' + marginLabel + '</span><span class="result-value">' + result.total_cost_with_margin.toFixed(2) + ' руб</span></div>';
 		}
 
 		// Кнопки действий
@@ -561,15 +595,15 @@ const CalculatorPage = {
 			<table class="results-table">
 				<tr>
 					<td>Объем заготовки</td>
-					<td>${this.formatNumber(result.workpiece_volume || 0, 2)} мм³</td>
+					<td>${this.formatNumber((result.workpiece_volume || 0) / 1000, 2)} см³</td>
 				</tr>
 				<tr>
 					<td>Объем изделия</td>
-					<td>${this.formatNumber(result.product_volume || 0, 2)} мм³</td>
+					<td>${this.formatNumber((result.product_volume || 0) / 1000, 2)} см³</td>
 				</tr>
 				<tr>
 					<td>Объем отходов</td>
-					<td>${this.formatNumber(result.waste_volume || 0, 2)} мм³</td>
+					<td>${this.formatNumber((result.waste_volume || 0) / 1000, 2)} см³</td>
 				</tr>
 				<tr>
 					<td>Масса заготовки</td>
@@ -592,27 +626,25 @@ const CalculatorPage = {
 					<td>${this.formatNumber(result.salary_with_quantity_coef ?? result.total_operations_cost ?? 0, 2)} руб</td>
 				</tr>`;
 
-			if (result.coefficients && result.coefficients.length > 0) {
+			if ((result.coefficients && result.coefficients.length > 0) || result.ohr_cost !== undefined) {
 				html += `<tr>
-					<td colspan="2"><strong>Коэффициенты (налоги):</strong></td>
+					<td colspan="2"><strong>Коэффициенты / налоги:</strong></td>
 				</tr>`;
-				result.coefficients.forEach(coef => {
+				if (result.coefficients && result.coefficients.length > 0) {
+					result.coefficients.forEach(coef => {
+						html += `<tr>
+							<td>${this.escapeHtml(coef.name)} (${coef.value}%)</td>
+							<td>${this.formatNumber(coef.amount || 0, 2)} руб</td>
+						</tr>`;
+					});
+				}
+				if (result.ohr_cost !== undefined) {
+					const ohrLabel = (result.ohr_coefficient != null) ? 'ОХР (K = ' + result.ohr_coefficient + ')' : 'ОХР';
 					html += `<tr>
-						<td>${this.escapeHtml(coef.name)} (${coef.value}%)</td>
-						<td>${this.formatNumber(coef.amount || 0, 2)} руб</td>
+						<td>${ohrLabel}</td>
+						<td>${this.formatNumber(result.ohr_cost, 2)} руб</td>
 					</tr>`;
-				});
-				html += `<tr>
-					<td>Итого коэффициенты</td>
-					<td>${this.formatNumber(result.coefficients_cost || 0, 2)} руб</td>
-				</tr>`;
-			}
-
-			if (result.ohr_cost !== undefined) {
-				html += `<tr>
-					<td>ОХР (коэф. массы ${result.mass_coefficient ?? ''})</td>
-					<td>${this.formatNumber(result.ohr_cost, 2)} руб</td>
-				</tr>`;
+				}
 			}
 
 			html += `</table>
@@ -620,9 +652,10 @@ const CalculatorPage = {
 				Общая себестоимость: ${this.formatNumber(result.total_cost_without_packaging || 0, 2)} руб
 			</div>`;
 			if (result.total_cost_with_margin !== undefined) {
+				const marginPct = (result.margin_percent != null) ? result.margin_percent : 40;
 				html += `
 			<div class="total" style="margin-top: 8px; font-size: 1.1em;">
-				Итого с маржой 40%: ${this.formatNumber(result.total_cost_with_margin, 2)} руб
+				Итого с маржой ${marginPct}%: ${this.formatNumber(result.total_cost_with_margin, 2)} руб
 			</div>`;
 			}
 			html += `</div>`;

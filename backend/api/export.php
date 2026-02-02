@@ -386,15 +386,15 @@ function generateExportHTML($calculation, $parameters, $operations, $result, $pa
 			<table class="results-table">
 				<tr>
 					<td>Объем заготовки</td>
-					<td>' . number_format($result['workpiece_volume'] ?? 0, 2, '.', ' ') . ' мм³</td>
+					<td>' . number_format(($result['workpiece_volume'] ?? 0) / 1000, 2, '.', ' ') . ' см³</td>
 				</tr>
 				<tr>
 					<td>Объем изделия</td>
-					<td>' . number_format($result['product_volume'] ?? 0, 2, '.', ' ') . ' мм³</td>
+					<td>' . number_format(($result['product_volume'] ?? 0) / 1000, 2, '.', ' ') . ' см³</td>
 				</tr>
 				<tr>
 					<td>Объем отходов</td>
-					<td>' . number_format($result['waste_volume'] ?? 0, 2, '.', ' ') . ' мм³</td>
+					<td>' . number_format(($result['waste_volume'] ?? 0) / 1000, 2, '.', ' ') . ' см³</td>
 				</tr>
 				<tr>
 					<td>Масса заготовки</td>
@@ -417,27 +417,23 @@ function generateExportHTML($calculation, $parameters, $operations, $result, $pa
 					<td>' . number_format($result['salary_with_quantity_coef'] ?? $result['total_operations_cost'] ?? 0, 2, '.', ' ') . ' руб</td>
 				</tr>';
 
-		if (!empty($result['coefficients'])) {
+		if (!empty($result['coefficients']) || isset($result['ohr_cost'])) {
 			$html .= '<tr>
-				<td colspan="2"><strong>Коэффициенты (налоги):</strong></td>
+				<td colspan="2"><strong>Коэффициенты / налоги:</strong></td>
 			</tr>';
-			foreach ($result['coefficients'] as $coef) {
+			foreach ($result['coefficients'] ?? [] as $coef) {
 				$html .= '<tr>
 					<td>' . htmlspecialchars($coef['name']) . ' (' . $coef['value'] . '%)</td>
 					<td>' . number_format($coef['amount'] ?? 0, 2, '.', ' ') . ' руб</td>
 				</tr>';
 			}
-			$html .= '<tr>
-				<td>Итого коэффициенты</td>
-				<td>' . number_format($result['coefficients_cost'] ?? 0, 2, '.', ' ') . ' руб</td>
-			</tr>';
-		}
-
-		if (isset($result['ohr_cost'])) {
-			$html .= '<tr>
-				<td>ОХР (коэф. массы ' . ($result['mass_coefficient'] ?? '') . ')</td>
-				<td>' . number_format($result['ohr_cost'], 2, '.', ' ') . ' руб</td>
-			</tr>';
+			if (isset($result['ohr_cost'])) {
+				$ohrLabel = isset($result['ohr_coefficient']) ? 'ОХР (K = ' . $result['ohr_coefficient'] . ')' : 'ОХР';
+				$html .= '<tr>
+					<td>' . $ohrLabel . '</td>
+					<td>' . number_format($result['ohr_cost'], 2, '.', ' ') . ' руб</td>
+				</tr>';
+			}
 		}
 
 		$html .= '</table>
@@ -445,9 +441,10 @@ function generateExportHTML($calculation, $parameters, $operations, $result, $pa
 			Общая себестоимость: ' . number_format($result['total_cost_without_packaging'] ?? 0, 2, '.', ' ') . ' руб
 		</div>';
 		if (isset($result['total_cost_with_margin'])) {
+			$marginPct = $result['margin_percent'] ?? 40;
 			$html .= '
 		<div class="total" style="margin-top: 8px; font-size: 1.1em;">
-			Итого с маржой 40%: ' . number_format($result['total_cost_with_margin'], 2, '.', ' ') . ' руб
+			Итого с маржой ' . $marginPct . '%: ' . number_format($result['total_cost_with_margin'], 2, '.', ' ') . ' руб
 		</div>';
 		}
 		$html .= '

@@ -25,18 +25,21 @@ class Calculator {
 	}
 
 	/**
-	 * Коэффициент массы для ОХР по массе изделия (кг).
-	 * @param float $productMass масса изделия в кг
-	 * @return float
+	 * Загружает фиксированные коэффициенты по ключам name.
+	 * @return array<string, float> ключ => value
 	 */
-	private function getMassCoefficient($productMass) {
-		if ($productMass < 1) return 9.0;
-		if ($productMass < 5) return 12.5;
-		if ($productMass < 10) return 16.0;
-		return 15.0;
+	private function getFixedCoefficients() {
+		$rows = $this->db->fetchAll(
+			"SELECT name, value FROM coefficients WHERE name IN ('N', 'Kz_порог', 'Kz', 'K', 'M')"
+		);
+		$map = [];
+		foreach ($rows as $row) {
+			$map[$row['name']] = (float)$row['value'];
+		}
+		return $map;
 	}
 
-	public function calculate($productName, $materialId, $productTypeId, $parameters, $operations = [], $quantity = 5) {
+	public function calculate($productName, $materialId, $productTypeId, $parameters, $operations = [], $quantity = 5, $workpieceMassOverride = null) {
 		// Получаем материал
 		$material = $this->materialManager->getById($materialId);
 		if (!$material) {
@@ -59,20 +62,26 @@ class Calculator {
 			throw $error;
 		}
 
-		// Вычисляем объемы
+		// Вычисляем объемы (нужны для пропорций и для расчёта массы по габаритам)
 		$productVolume = $this->productTypeManager->calculateVolume($productTypeId, $parameters);
 		$wasteVolume = $this->productTypeManager->calculateWasteVolume($productTypeId, $parameters);
 		$workpieceVolume = $productVolume + $wasteVolume;
 
-		// Вычисляем массы
-		// Плотность в г/см³, объем в мм³
-		// Масса (кг) = Объем (мм³) × Плотность (г/см³) / 1_000_000
 		$density = (float)$material['density'];
 		$conversionFactor = 1000000;
-		
-		$workpieceMass = ($workpieceVolume * $density) / $conversionFactor;
-		$productMass = ($productVolume * $density) / $conversionFactor;
-		$wasteMass = ($wasteVolume * $density) / $conversionFactor;
+
+		if ($workpieceMassOverride !== null && $workpieceMassOverride > 0) {
+			// Ручная масса заготовки (кг)
+			$workpieceMass = (float)$workpieceMassOverride;
+			$volumeRatio = $workpieceVolume > 0 ? ($productVolume / $workpieceVolume) : 1.0;
+			$productMass = $workpieceMass * $volumeRatio;
+			$wasteMass = $workpieceMass - $productMass;
+		} else {
+			// Масса по габаритам: Масса (кг) = Объем (мм³) × Плотность (г/см³) / 1_000_000
+			$workpieceMass = ($workpieceVolume * $density) / $conversionFactor;
+			$productMass = ($productVolume * $density) / $conversionFactor;
+			$wasteMass = ($wasteVolume * $density) / $conversionFactor;
+		}
 
 		// Вычисляем стоимость материала
 		$pricePerKg = (float)$material['price'];
@@ -104,36 +113,32 @@ class Calculator {
 			}
 		}
 
-		// Коэффициент за мелкие заказы: количество >= 5 → K = 1.0, иначе K = 1.5
 		$quantity = (int)$quantity;
-		$quantityCoefficient = $quantity >= 5 ? 1.0 : 1.5;
+		$coef = $this->getFixedCoefficients();
+		$kzThreshold = isset($coef['Kz_порог']) ? (float)$coef['Kz_порог'] : 5.0;
+		$kz = isset($coef['Kz']) ? (float)$coef['Kz'] : 1.5;
+
+		// ЗП с учётом малого заказа: если quantity < порог → ЗП = сумма операций × Kz
+		$quantityCoefficient = ($quantity < $kzThreshold) ? $kz : 1.0;
 		$salaryWithCoeff = $totalOperationsCost * $quantityCoefficient;
 
-		// Налоги/коэффициенты считаем от зарплаты (с коэффициентом количества)
-		$coefficients = $this->db->fetchAll("SELECT * FROM coefficients ORDER BY name");
-		$calculationCoefficients = [];
-		$coefficientsCost = 0.0;
+		// Налог N (%): одна запись
+		$nPercent = isset($coef['N']) ? (float)$coef['N'] : 30.0;
+		$coefficientsCost = $salaryWithCoeff * ($nPercent / 100.0);
+		$calculationCoefficients = [
+			['name' => 'Налоги на зарплату', 'value' => $nPercent, 'amount' => $coefficientsCost]
+		];
 
-		foreach ($coefficients as $coefficient) {
-			$coefficientAmount = $salaryWithCoeff * ((float)$coefficient['value'] / 100.0);
-			$coefficientsCost += $coefficientAmount;
+		// ОХР = ((Масса изделия × K) + (Сумма стоимости операций + Сумма стоимости операций × K)) / 2
+		$kOhr = isset($coef['K']) ? (float)$coef['K'] : 12.0;
+		$ohrCost = (($productMass * $kOhr) + ($totalOperationsCost + $coefficientsCost)) / 2.0;
 
-			$calculationCoefficients[] = [
-				'name' => $coefficient['name'],
-				'value' => (float)$coefficient['value'],
-				'amount' => $coefficientAmount
-			];
-		}
-
-		// ОХР = ((Масса изделия * коэф.массы) + (зарплата + налоги)) / 2
-		$massCoeff = $this->getMassCoefficient($productMass);
-		$ohrCost = (($productMass * $massCoeff) + ($salaryWithCoeff + $coefficientsCost)) / 2.0;
-
-		// Общая себестоимость без упаковки
+		// Себестоимость = Материалы + ЗП + Налог + ОХР
 		$totalCostWithoutPackaging = $materialCost + $salaryWithCoeff + $coefficientsCost + $ohrCost;
 
-		// Маржинальность 40% на конечную стоимость
-		$totalCostWithMargin = $totalCostWithoutPackaging * 1.40;
+		// Стоимость изделия = Себестоимость × (1 + M/100), M в процентах
+		$mPercent = isset($coef['M']) ? (float)$coef['M'] : 40.0;
+		$totalCostWithMargin = $totalCostWithoutPackaging * (1.0 + $mPercent / 100.0);
 
 		return [
 			'product_name' => $productName,
@@ -155,8 +160,9 @@ class Calculator {
 			'salary_with_quantity_coef' => $salaryWithCoeff,
 			'coefficients' => $calculationCoefficients,
 			'coefficients_cost' => $coefficientsCost,
-			'mass_coefficient' => $massCoeff,
+			'ohr_coefficient' => $kOhr,
 			'ohr_cost' => $ohrCost,
+			'margin_percent' => $mPercent,
 			'total_cost_without_packaging' => $totalCostWithoutPackaging,
 			'total_cost_with_margin' => $totalCostWithMargin
 		];

@@ -25,6 +25,8 @@ try {
 	$db = Database::getInstance();
 	$method = $_SERVER['REQUEST_METHOD'];
 
+	$fixedCoefficientNames = ['N', 'Kz_порог', 'Kz', 'K', 'M'];
+
 	switch ($method) {
 	case 'GET':
 		$id = $_GET['id'] ?? null;
@@ -42,37 +44,44 @@ try {
 		break;
 
 	case 'POST':
-		$data = json_decode(file_get_contents('php://input'), true);
-		$name = $data['name'] ?? '';
-		$value = $data['value'] ?? 0;
-		$description = $data['description'] ?? null;
-
-		if (empty($name)) {
-			http_response_code(400);
-			echo json_encode(['error' => 'Необходимо указать название коэффициента']);
-			exit;
-		}
-
-		$db->execute("INSERT INTO coefficients (name, value, description) VALUES (?, ?, ?)", 
-			[$name, $value, $description]);
-		echo json_encode(['success' => true, 'id' => $db->lastInsertId()]);
+		// Создание новых коэффициентов отключено — только фиксированный набор
+		http_response_code(403);
+		echo json_encode(['error' => 'Добавление коэффициентов отключено. Редактируйте существующие коэффициенты.'], JSON_UNESCAPED_UNICODE);
 		break;
 
 	case 'PUT':
 		$data = json_decode(file_get_contents('php://input'), true);
 		$id = $data['id'] ?? null;
-		$name = $data['name'] ?? '';
 		$value = $data['value'] ?? 0;
-		$description = $data['description'] ?? null;
+		$description = isset($data['description']) ? $data['description'] : null;
 
-		if (!$id || empty($name)) {
+		if (!$id) {
 			http_response_code(400);
-			echo json_encode(['error' => 'Необходимо указать ID и название']);
+			echo json_encode(['error' => 'Необходимо указать ID']);
 			exit;
 		}
 
-		$result = $db->execute("UPDATE coefficients SET name = ?, value = ?, description = ? WHERE id = ?",
-			[$name, $value, $description, $id]);
+		$existing = $db->fetchOne("SELECT id, name FROM coefficients WHERE id = ?", [$id]);
+		if (!$existing) {
+			http_response_code(404);
+			echo json_encode(['error' => 'Коэффициент не найден']);
+			exit;
+		}
+		// Для фиксированных коэффициентов не меняем name, только value и description
+		$name = $existing['name'];
+		if (in_array($name, $fixedCoefficientNames)) {
+			$result = $db->execute("UPDATE coefficients SET value = ?, description = ? WHERE id = ?",
+				[$value, $description, $id]);
+		} else {
+			$name = $data['name'] ?? $name;
+			if (empty($name)) {
+				http_response_code(400);
+				echo json_encode(['error' => 'Необходимо указать название']);
+				exit;
+			}
+			$result = $db->execute("UPDATE coefficients SET name = ?, value = ?, description = ? WHERE id = ?",
+				[$name, $value, $description, $id]);
+		}
 		if ($result) {
 			echo json_encode(['success' => true]);
 		} else {
@@ -88,7 +97,17 @@ try {
 			echo json_encode(['error' => 'Необходимо указать ID']);
 			exit;
 		}
-
+		$row = $db->fetchOne("SELECT name FROM coefficients WHERE id = ?", [$id]);
+		if (!$row) {
+			http_response_code(404);
+			echo json_encode(['error' => 'Коэффициент не найден']);
+			exit;
+		}
+		if (in_array($row['name'], $fixedCoefficientNames)) {
+			http_response_code(403);
+			echo json_encode(['error' => 'Удаление системного коэффициента запрещено'], JSON_UNESCAPED_UNICODE);
+			exit;
+		}
 		$result = $db->execute("DELETE FROM coefficients WHERE id = ?", [$id]);
 		if ($result) {
 			echo json_encode(['success' => true]);
