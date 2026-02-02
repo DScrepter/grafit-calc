@@ -102,7 +102,7 @@ const CalculatorPage = {
 		materials.forEach(material => {
 			const option = document.createElement('option');
 			option.value = material.id;
-			option.textContent = `${material.mark} (${parseFloat(material.price).toFixed(2)} руб/кг)`;
+			option.textContent = material.mark;
 			select.appendChild(option);
 		});
 	},
