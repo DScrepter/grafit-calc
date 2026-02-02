@@ -135,10 +135,12 @@ const ProductsPage = {
 		// Основная информация
 		html += '<div class="field-group">';
 		html += '<div class="field-group-title">Основная информация</div>';
+		html += '<div class="result-row"><span class="result-label">Менеджер:</span><span class="result-value">' + this.escapeHtml(calculation.manager_name || '-') + '</span></div>';
 		html += '<div class="result-row"><span class="result-label">Дата создания:</span><span class="result-value">' + createdAt + '</span></div>';
 		html += '<div class="result-row"><span class="result-label">Название изделия:</span><span class="result-value">' + this.escapeHtml(calculation.product_name) + '</span></div>';
 		html += '<div class="result-row"><span class="result-label">Материал:</span><span class="result-value">' + this.escapeHtml(calculation.material_name || '-') + '</span></div>';
 		html += '<div class="result-row"><span class="result-label">Тип изделия:</span><span class="result-value">' + this.escapeHtml(calculation.product_type_name || '-') + '</span></div>';
+		html += '<div class="result-row"><span class="result-label">Примечание менеджера:</span><span class="result-value">' + this.escapeHtml(calculation.manager_note || '-') + '</span></div>';
 		html += '</div>';
 
 		// Параметры

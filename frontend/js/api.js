@@ -378,6 +378,8 @@ class API {
 		const productName = this.escapeHtml(calc.product_name || '');
 		const materialName = this.escapeHtml(calc.material_name || '');
 		const productTypeName = this.escapeHtml(calc.product_type_name || '');
+		const managerName = this.escapeHtml(calc.manager_name || '') || '-';
+		const managerNote = this.escapeHtml(calc.manager_note || '') || '-';
 		const createdAt = new Date(calc.created_at).toLocaleString('ru-RU');
 
 		// Используем inline стили для лучшей совместимости с html2canvas
@@ -385,6 +387,7 @@ class API {
 		let html = `<div style="font-family: 'Arial', 'DejaVu Sans', 'Liberation Sans', sans-serif; padding: 20px; color: rgb(51, 51, 51); background-color: rgb(255, 255, 255);">
 			<div style="border-bottom: 2px solid rgb(51, 51, 51); padding-bottom: 10px; margin-bottom: 20px;">
 				<h1 style="margin: 0px; font-size: 24px; color: rgb(0, 0, 0);">Калькуляция себестоимости</h1>
+				<p style="margin: 5px 0px; color: rgb(0, 0, 0);">Менеджер: ${managerName}</p>
 				<p style="margin: 5px 0px; color: rgb(0, 0, 0);">Дата создания: ${createdAt}</p>
 			</div>
 			
@@ -400,6 +403,10 @@ class API {
 				<tr>
 					<td style="padding: 8px; border: 1px solid rgb(221, 221, 221); background-color: rgb(245, 245, 245); font-weight: bold; color: rgb(0, 0, 0);">Тип изделия</td>
 					<td style="padding: 8px; border: 1px solid rgb(221, 221, 221); color: rgb(0, 0, 0);">${productTypeName}</td>
+				</tr>
+				<tr>
+					<td style="padding: 8px; border: 1px solid rgb(221, 221, 221); background-color: rgb(245, 245, 245); font-weight: bold; color: rgb(0, 0, 0);">Примечание менеджера</td>
+					<td style="padding: 8px; border: 1px solid rgb(221, 221, 221); color: rgb(0, 0, 0);">${managerNote}</td>
 				</tr>
 			</table>`;
 

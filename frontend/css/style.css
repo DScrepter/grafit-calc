@@ -363,6 +363,27 @@ body {
 	color: #333;
 }
 
+.field-group--manager-note label {
+	display: block;
+	margin-bottom: 8px;
+	font-weight: 500;
+	color: #333;
+}
+
+.field-group--manager-note textarea {
+	width: 100%;
+	box-sizing: border-box;
+	padding: 10px;
+	border: 1px solid #ddd;
+	border-radius: 4px;
+	resize: vertical;
+}
+
+.field-group--manager-note textarea:focus {
+	outline: none;
+	border-color: #1976d2;
+}
+
 /* Переключатели (radio в виде сегментированного блока) */
 .toggle-row {
 	display: block;

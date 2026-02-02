@@ -76,12 +76,15 @@ class PDFGenerator {
 		$productName = $calculation['product_name'] ?? '';
 		$materialName = $calculation['material_name'] ?? '';
 		$productTypeName = $calculation['product_type_name'] ?? '';
+		$managerName = trim((string)($calculation['manager_name'] ?? '')) ?: '-';
+		$managerNote = trim((string)($calculation['manager_note'] ?? '')) ?: '-';
 		$createdAt = date('d.m.Y H:i', strtotime($calculation['created_at'] ?? 'now'));
 		
 		// Заголовок
 		$this->pdf->SetFont('dejavusans', 'B', 18);
 		$this->pdf->Cell(0, 10, 'Калькуляция себестоимости', 0, 1, 'C');
 		$this->pdf->SetFont('dejavusans', '', 10);
+		$this->pdf->Cell(0, 5, 'Менеджер: ' . $managerName, 0, 1, 'C');
 		$this->pdf->Cell(0, 5, 'Дата создания: ' . $createdAt, 0, 1, 'C');
 		$this->pdf->Ln(5);
 		
@@ -98,6 +101,8 @@ class PDFGenerator {
 		$this->pdf->Cell(0, 6, $materialName, 0, 1);
 		$this->pdf->Cell(60, 6, 'Тип изделия:', 0, 0);
 		$this->pdf->Cell(0, 6, $productTypeName, 0, 1);
+		$this->pdf->Cell(60, 6, 'Примечание менеджера:', 0, 0);
+		$this->pdf->Cell(0, 6, $managerNote, 0, 1);
 		$this->pdf->Ln(5);
 		
 		// Параметры

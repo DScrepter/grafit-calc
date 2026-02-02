@@ -26,6 +26,20 @@ try {
 	$userId = $auth->getUserId();
 	$method = $_SERVER['REQUEST_METHOD'];
 
+	$buildManagerName = function ($userData) {
+		if (!$userData) {
+			return '';
+		}
+		$first = trim((string)($userData['first_name'] ?? ''));
+		$last = trim((string)($userData['last_name'] ?? ''));
+		if ($first !== '' && $last !== '') {
+			return $last . ' ' . $first;
+		}
+		$username = $userData['username'] ?? '';
+		$email = $userData['email'] ?? '';
+		return $username !== '' ? $username . ($email !== '' ? ' (' . $email . ')' : '') : $email;
+	};
+
 	switch ($method) {
 	case 'GET':
 		$id = $_GET['id'] ?? null;
@@ -145,10 +159,13 @@ try {
 		$operationsJson = json_encode($operations, JSON_UNESCAPED_UNICODE);
 		$resultJson = json_encode($result, JSON_UNESCAPED_UNICODE);
 
+		$managerName = $buildManagerName($auth->getUserData());
+		$managerNote = trim((string)($data['manager_note'] ?? ''));
+
 		$db->execute(
-			"INSERT INTO calculations (user_id, product_name, material_id, product_type_id, parameters, operations, result)
-			VALUES (?, ?, ?, ?, ?, ?, ?)",
-			[$userId, $productName, $materialId, $productTypeId, $parametersJson, $operationsJson, $resultJson]
+			"INSERT INTO calculations (user_id, manager_name, manager_note, product_name, material_id, product_type_id, parameters, operations, result)
+			VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
+			[$userId, $managerName, $managerNote ?: null, $productName, $materialId, $productTypeId, $parametersJson, $operationsJson, $resultJson]
 		);
 
 		echo json_encode(['success' => true, 'id' => $db->lastInsertId()], JSON_UNESCAPED_UNICODE);
@@ -200,12 +217,15 @@ try {
 		$operationsJson = json_encode($operations, JSON_UNESCAPED_UNICODE);
 		$resultJson = json_encode($result, JSON_UNESCAPED_UNICODE);
 
+		$managerName = $buildManagerName($auth->getUserData());
+		$managerNote = trim((string)($data['manager_note'] ?? ''));
+
 		$db->execute(
 			"UPDATE calculations 
-			SET product_name = ?, material_id = ?, product_type_id = ?, 
+			SET manager_name = ?, manager_note = ?, product_name = ?, material_id = ?, product_type_id = ?, 
 				parameters = ?, operations = ?, result = ?
 			WHERE id = ?",
-			[$productName, $materialId, $productTypeId, $parametersJson, $operationsJson, $resultJson, $id]
+			[$managerName, $managerNote ?: null, $productName, $materialId, $productTypeId, $parametersJson, $operationsJson, $resultJson, $id]
 		);
 
 		echo json_encode(['success' => true], JSON_UNESCAPED_UNICODE);

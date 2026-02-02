@@ -40,6 +40,13 @@ try {
 		
 		if ($data && isset($data['calculation'])) {
 			$calculation = $data['calculation'];
+			$userData = $auth->getUserData();
+			$first = trim((string)($userData['first_name'] ?? ''));
+			$last = trim((string)($userData['last_name'] ?? ''));
+			$calculation['manager_name'] = ($first !== '' && $last !== '')
+				? ($last . ' ' . $first)
+				: (($userData['username'] ?? '') . (($email = $userData['email'] ?? '') !== '' ? ' (' . $email . ')' : ''));
+			$calculation['manager_note'] = trim((string)($data['calculation']['manager_note'] ?? ''));
 			$parameters = $data['parameters'] ?? [];
 			$operations = $data['operations'] ?? [];
 			$result = $data['result'] ?? [];
@@ -259,6 +266,10 @@ function generateExportHTML($calculation, $parameters, $operations, $result, $pa
 	$productName = htmlspecialchars($calculation['product_name']);
 	$materialName = htmlspecialchars($calculation['material_name'] ?? '');
 	$productTypeName = htmlspecialchars($calculation['product_type_name'] ?? '');
+	$managerNameRaw = trim((string)($calculation['manager_name'] ?? ''));
+	$managerNoteRaw = trim((string)($calculation['manager_note'] ?? ''));
+	$managerName = $managerNameRaw !== '' ? htmlspecialchars($managerNameRaw) : '-';
+	$managerNote = $managerNoteRaw !== '' ? htmlspecialchars($managerNoteRaw) : '-';
 	$createdAt = date('d.m.Y H:i', strtotime($calculation['created_at']));
 
 	$html = '<!DOCTYPE html>
@@ -338,6 +349,7 @@ function generateExportHTML($calculation, $parameters, $operations, $result, $pa
 <body>
 	<div class="header">
 		<h1>Калькуляция себестоимости</h1>
+		<p>Менеджер: ' . $managerName . '</p>
 		<p>Дата создания: ' . $createdAt . '</p>
 	</div>
 
@@ -353,6 +365,10 @@ function generateExportHTML($calculation, $parameters, $operations, $result, $pa
 		<tr>
 			<td>Тип изделия</td>
 			<td>' . $productTypeName . '</td>
+		</tr>
+		<tr>
+			<td>Примечание менеджера</td>
+			<td>' . $managerNote . '</td>
 		</tr>
 	</table>';
 

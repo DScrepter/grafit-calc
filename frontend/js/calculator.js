@@ -68,6 +68,11 @@ const CalculatorPage = {
 						<button type="button" class="btn btn-primary" onclick="CalculatorPage.addOperation()">Добавить операцию</button>
 					</div>
 
+					<div class="field-group field-group--manager-note">
+						<label for="managerNote">Примечание менеджера</label>
+						<textarea id="managerNote" rows="5" placeholder="Необязательно"></textarea>
+					</div>
+
 					<button type="submit" class="btn btn-primary mt-20">Рассчитать</button>
 				</form>
 
@@ -204,6 +209,9 @@ const CalculatorPage = {
 
 			// Сохраняем ID для обновления
 			this.currentCalculationId = calculation.id;
+
+			const managerNoteEl = document.getElementById('managerNote');
+			if (managerNoteEl) managerNoteEl.value = calculation.manager_note || '';
 
 			// Если есть результат, показываем его
 			if (calculation.result) {
@@ -375,15 +383,18 @@ const CalculatorPage = {
 			return;
 		}
 
+		const managerNote = document.getElementById('managerNote')?.value?.trim() || '';
+
 		try {
 			if (this.currentCalculationId) {
 				await API.updateCalculation({
 					id: this.currentCalculationId,
-					...this.currentResult
+					...this.currentResult,
+					manager_note: managerNote
 				});
 				if (!silent) alert('Расчет успешно обновлен');
 			} else {
-				const response = await API.saveCalculation(this.currentResult);
+				const response = await API.saveCalculation({ ...this.currentResult, manager_note: managerNote });
 				this.currentCalculationId = response.id;
 				if (!silent) alert('Расчет успешно сохранен');
 				// Обновляем блок результатов (кнопки Экспорт/Печать с актуальным ID)
@@ -417,13 +428,21 @@ const CalculatorPage = {
 			});
 		}
 
+		const u = window.router?.currentUser;
+		const managerName = (u && (u.first_name || u.last_name))
+			? [u.last_name, u.first_name].filter(Boolean).join(' ').trim()
+			: (u && u.username) ? u.username + (u.email ? ' (' + u.email + ')' : '') : '-';
+		const managerNote = document.getElementById('managerNote')?.value?.trim() || '';
+
 		const data = {
 			calculation: {
 				product_name: this.currentResult.product_name,
 				material_name: this.currentResult.result.material_name,
 				product_type_name: this.currentResult.result.product_type_name,
 				product_type_id: this.currentProductType ? this.currentProductType.id : null,
-				created_at: new Date().toISOString()
+				created_at: new Date().toISOString(),
+				manager_name: managerName,
+				manager_note: managerNote
 			},
 			parameters: this.currentResult.parameters,
 			operations: this.operations,
@@ -472,6 +491,11 @@ const CalculatorPage = {
 		const createdAt = new Date().toLocaleString('ru-RU');
 		const parameters = data.parameters || {};
 		const operations = this.operations || [];
+		const u = window.router?.currentUser;
+		const managerName = (u && (u.first_name || u.last_name))
+			? [u.last_name, u.first_name].filter(Boolean).join(' ').trim()
+			: (u && u.username) ? u.username + (u.email ? ' (' + u.email + ')' : '') : '-';
+		const managerNote = (data.manager_note != null ? data.manager_note : document.getElementById('managerNote')?.value?.trim()) || '-';
 
 		let html = `<!DOCTYPE html>
 <html lang="ru">
@@ -550,6 +574,7 @@ const CalculatorPage = {
 <body>
 	<div class="header">
 		<h1>Калькуляция себестоимости</h1>
+		<p>Менеджер: ${this.escapeHtml(managerName)}</p>
 		<p>Дата создания: ${createdAt}</p>
 	</div>
 
@@ -565,6 +590,10 @@ const CalculatorPage = {
 		<tr>
 			<td>Тип изделия</td>
 			<td>${this.escapeHtml(productTypeName)}</td>
+		</tr>
+		<tr>
+			<td>Примечание менеджера</td>
+			<td>${this.escapeHtml(managerNote)}</td>
 		</tr>
 	</table>`;
 
