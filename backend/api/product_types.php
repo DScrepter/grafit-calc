@@ -17,23 +17,27 @@ try {
 	require_once __DIR__ . '/../classes/Logger.php';
 
 	$auth = new Auth();
-	
-	// Проверяем авторизацию
-	if (!$auth->isLoggedIn()) {
-		http_response_code(401);
-		echo json_encode(['error' => 'Требуется авторизация'], JSON_UNESCAPED_UNICODE);
-		exit;
-	}
-	
-	// Гости не имеют доступа к справочникам
-	if (!$auth->canAccessReferences()) {
-		http_response_code(403);
-		echo json_encode(['error' => 'Недостаточно прав доступа'], JSON_UNESCAPED_UNICODE);
-		exit;
+	$auth->requireAuth();
+
+	$method = $_SERVER['REQUEST_METHOD'];
+
+	// Чтение (GET) доступно всем, кто может пользоваться калькулятором (в т.ч. Менеджер)
+	if ($method === 'GET') {
+		if (!$auth->canAccessCalculators()) {
+			http_response_code(403);
+			echo json_encode(['error' => 'Недостаточно прав доступа'], JSON_UNESCAPED_UNICODE);
+			exit;
+		}
+	} else {
+		// Редактирование — только при доступе к справочникам
+		if (!$auth->canAccessReferences()) {
+			http_response_code(403);
+			echo json_encode(['error' => 'Недостаточно прав доступа'], JSON_UNESCAPED_UNICODE);
+			exit;
+		}
 	}
 
 	$manager = new ProductTypeManager();
-	$method = $_SERVER['REQUEST_METHOD'];
 
 	switch ($method) {
 	case 'GET':

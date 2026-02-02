@@ -15,7 +15,7 @@ $auth = new Auth();
 $auth->requireAuth();
 
 // Гости не имеют доступа к калькулятору
-if (!$auth->canAccessReferences()) {
+if (!$auth->canAccessCalculators()) {
 	http_response_code(403);
 	echo json_encode(['error' => 'Недостаточно прав доступа']);
 	exit;

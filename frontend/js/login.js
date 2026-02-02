@@ -97,7 +97,7 @@ document.addEventListener('DOMContentLoaded', () => {
 		const first_nameEl = document.getElementById('reg_first_name');
 		const last_nameEl = document.getElementById('reg_last_name');
 
-		if (!usernameEl || !emailEl || !passwordEl || !passwordConfirmEl) {
+		if (!usernameEl || !emailEl || !passwordEl || !first_nameEl || !last_nameEl) {
 			if (errorMessage) {
 				errorMessage.textContent = 'Ошибка: не найдены обязательные поля формы';
 				errorMessage.style.display = 'block';
@@ -110,9 +110,19 @@ document.addEventListener('DOMContentLoaded', () => {
 		const username = usernameEl.value.trim();
 		const email = emailEl.value.trim();
 		const password = passwordEl.value;
-		const passwordConfirm = passwordConfirmEl.value;
-		const first_name = first_nameEl ? first_nameEl.value.trim() || null : null;
-		const last_name = last_nameEl ? last_nameEl.value.trim() || null : null;
+		const passwordConfirm = passwordConfirmEl ? passwordConfirmEl.value : password;
+		const first_name = first_nameEl.value.trim();
+		const last_name = last_nameEl.value.trim();
+
+		if (!first_name || !last_name) {
+			if (errorMessage) {
+				errorMessage.textContent = 'Необходимо указать имя и фамилию';
+				errorMessage.style.display = 'block';
+				errorMessage.style.backgroundColor = '#fee';
+				errorMessage.style.color = '#c33';
+			}
+			return;
+		}
 
 		// Валидация имени пользователя (только латиница)
 		if (!/^[a-zA-Z0-9_]+$/.test(username)) {
@@ -125,8 +135,8 @@ document.addEventListener('DOMContentLoaded', () => {
 			return;
 		}
 
-		// Валидация совпадения паролей
-		if (password !== passwordConfirm) {
+		// Валидация совпадения паролей (если есть поле подтверждения)
+		if (passwordConfirmEl && password !== passwordConfirm) {
 			if (errorMessage) {
 				errorMessage.textContent = 'Пароли не совпадают';
 				errorMessage.style.display = 'block';

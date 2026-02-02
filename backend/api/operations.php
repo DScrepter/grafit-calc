@@ -14,30 +14,45 @@ require_once __DIR__ . '/../classes/Logger.php';
 try {
 	$auth = new Auth();
 	$auth->requireAuth();
-	
-	// Гости не имеют доступа к справочникам
+
+	$manager = new OperationManager();
+	$method = $_SERVER['REQUEST_METHOD'];
+	$id = $_GET['id'] ?? null;
+
+	// Список операций (GET без id) доступен всем, кто может пользоваться калькулятором
+	if ($method === 'GET' && !$id) {
+		if (!$auth->canAccessCalculators()) {
+			http_response_code(403);
+			echo json_encode(['error' => 'Недостаточно прав доступа']);
+			exit;
+		}
+		$list = $manager->getAll();
+		// Менеджер не видит стоимость операций
+		if ($auth->getUserRole() === 'user') {
+			foreach ($list as &$op) {
+				unset($op['cost']);
+			}
+			unset($op);
+		}
+		echo json_encode($list);
+		exit;
+	}
+
+	// Остальные методы (GET по id, POST, PUT, DELETE) — только для доступа к справочникам
 	if (!$auth->canAccessReferences()) {
 		http_response_code(403);
 		echo json_encode(['error' => 'Недостаточно прав доступа']);
 		exit;
 	}
 
-	$manager = new OperationManager();
-	$method = $_SERVER['REQUEST_METHOD'];
-
 	switch ($method) {
 	case 'GET':
-		$id = $_GET['id'] ?? null;
-		if ($id) {
-			$operation = $manager->getById($id);
-			if ($operation) {
-				echo json_encode($operation);
-			} else {
-				http_response_code(404);
-				echo json_encode(['error' => 'Операция не найдена']);
-			}
+		$operation = $manager->getById($id);
+		if ($operation) {
+			echo json_encode($operation);
 		} else {
-			echo json_encode($manager->getAll());
+			http_response_code(404);
+			echo json_encode(['error' => 'Операция не найдена']);
 		}
 		break;
 

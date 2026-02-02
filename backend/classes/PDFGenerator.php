@@ -72,7 +72,7 @@ class PDFGenerator {
 		$this->pdf->AddPage();
 	}
 	
-	public function generateCalculationPDF($calculation, $parameters, $operations, $result, $paramLabelMap = []) {
+	public function generateCalculationPDF($calculation, $parameters, $operations, $result, $paramLabelMap = [], $forManager = false) {
 		$productName = $calculation['product_name'] ?? '';
 		$materialName = $calculation['material_name'] ?? '';
 		$productTypeName = $calculation['product_type_name'] ?? '';
@@ -149,39 +149,38 @@ class PDFGenerator {
 			$this->pdf->Cell(0, 6, number_format($result['product_mass'] ?? 0, 4, '.', ' ') . ' кг', 0, 1);
 			$this->pdf->Cell(100, 6, 'Масса отходов:', 0, 0);
 			$this->pdf->Cell(0, 6, number_format($result['waste_mass'] ?? 0, 4, '.', ' ') . ' кг', 0, 1);
-			$this->pdf->Cell(100, 6, 'Стоимость материала:', 0, 0);
-			$this->pdf->Cell(0, 6, number_format($result['material_cost'] ?? 0, 2, '.', ' ') . ' руб', 0, 1);
-			$salaryDisplay = $result['salary_with_quantity_coef'] ?? $result['total_operations_cost'] ?? 0;
-			$this->pdf->Cell(100, 6, 'Зарплата (операции):', 0, 0);
-			$this->pdf->Cell(0, 6, number_format($salaryDisplay, 2, '.', ' ') . ' руб', 0, 1);
-			
-			if (!empty($result['coefficients']) || isset($result['ohr_cost'])) {
-				$this->pdf->Ln(3);
-				$this->pdf->SetFont('dejavusans', 'B', 10);
-				$this->pdf->Cell(0, 6, 'Коэффициенты / налоги:', 0, 1);
-				$this->pdf->SetFont('dejavusans', '', 10);
-
-				foreach ($result['coefficients'] ?? [] as $coef) {
-					$coefText = $coef['name'] . ' (' . $coef['value'] . '%):';
-					$this->pdf->Cell(100, 6, $coefText, 0, 0);
-					$this->pdf->Cell(0, 6, number_format($coef['amount'] ?? 0, 2, '.', ' ') . ' руб', 0, 1);
+			if (!$forManager) {
+				$this->pdf->Cell(100, 6, 'Стоимость материала:', 0, 0);
+				$this->pdf->Cell(0, 6, number_format($result['material_cost'] ?? 0, 2, '.', ' ') . ' руб', 0, 1);
+				$salaryDisplay = $result['salary_with_quantity_coef'] ?? $result['total_operations_cost'] ?? 0;
+				$this->pdf->Cell(100, 6, 'Зарплата (операции):', 0, 0);
+				$this->pdf->Cell(0, 6, number_format($salaryDisplay, 2, '.', ' ') . ' руб', 0, 1);
+				if (!empty($result['coefficients']) || isset($result['ohr_cost'])) {
+					$this->pdf->Ln(3);
+					$this->pdf->SetFont('dejavusans', 'B', 10);
+					$this->pdf->Cell(0, 6, 'Коэффициенты / налоги:', 0, 1);
+					$this->pdf->SetFont('dejavusans', '', 10);
+					foreach ($result['coefficients'] ?? [] as $coef) {
+						$coefText = $coef['name'] . ' (' . $coef['value'] . '%):';
+						$this->pdf->Cell(100, 6, $coefText, 0, 0);
+						$this->pdf->Cell(0, 6, number_format($coef['amount'] ?? 0, 2, '.', ' ') . ' руб', 0, 1);
+					}
+					if (isset($result['ohr_cost'])) {
+						$ohrLabel = isset($result['ohr_coefficient']) ? 'ОХР (K = ' . $result['ohr_coefficient'] . '):' : 'ОХР:';
+						$this->pdf->Cell(100, 6, $ohrLabel, 0, 0);
+						$this->pdf->Cell(0, 6, number_format($result['ohr_cost'], 2, '.', ' ') . ' руб', 0, 1);
+					}
 				}
-				if (isset($result['ohr_cost'])) {
-					$ohrLabel = isset($result['ohr_coefficient']) ? 'ОХР (K = ' . $result['ohr_coefficient'] . '):' : 'ОХР:';
-					$this->pdf->Cell(100, 6, $ohrLabel, 0, 0);
-					$this->pdf->Cell(0, 6, number_format($result['ohr_cost'], 2, '.', ' ') . ' руб', 0, 1);
-				}
+				$this->pdf->Ln(5);
+				$this->pdf->Line(15, $this->pdf->GetY(), 195, $this->pdf->GetY());
+				$this->pdf->Ln(5);
+				$this->pdf->SetFont('dejavusans', 'B', 14);
+				$this->pdf->Cell(0, 8, 'Общая себестоимость: ' . number_format($result['total_cost_without_packaging'] ?? 0, 2, '.', ' ') . ' руб', 0, 1);
 			}
-			
-			$this->pdf->Ln(5);
-			$this->pdf->Line(15, $this->pdf->GetY(), 195, $this->pdf->GetY());
-			$this->pdf->Ln(5);
-			$this->pdf->SetFont('dejavusans', 'B', 14);
-			$this->pdf->Cell(0, 8, 'Общая себестоимость: ' . number_format($result['total_cost_without_packaging'] ?? 0, 2, '.', ' ') . ' руб', 0, 1);
 			if (isset($result['total_cost_with_margin'])) {
 				$this->pdf->SetFont('dejavusans', 'B', 14);
-				$marginPct = $result['margin_percent'] ?? 40;
-				$this->pdf->Cell(0, 8, 'Итого с маржой ' . $marginPct . '%: ' . number_format($result['total_cost_with_margin'], 2, '.', ' ') . ' руб', 0, 1);
+				$label = $forManager ? 'Итоговая цена: ' : ('Итого с маржой ' . ($result['margin_percent'] ?? 40) . '%: ');
+				$this->pdf->Cell(0, 8, $label . number_format($result['total_cost_with_margin'], 2, '.', ' ') . ' руб', 0, 1);
 			}
 			$this->pdf->SetFont('dejavusans', '', 10);
 		}
@@ -195,36 +194,32 @@ class PDFGenerator {
 			$this->pdf->Line(15, $this->pdf->GetY(), 195, $this->pdf->GetY());
 			$this->pdf->Ln(3);
 			
-			// Таблица операций
 			$this->pdf->SetFillColor(245, 245, 245);
 			$this->pdf->SetFont('dejavusans', 'B', 10);
 			$this->pdf->Cell(30, 6, 'Номер', 1, 0, 'L', true);
 			$this->pdf->Cell(80, 6, 'Описание', 1, 0, 'L', true);
 			$this->pdf->Cell(35, 6, 'Коэф. сложности', 1, 0, 'C', true);
-			$this->pdf->Cell(35, 6, 'Стоимость', 1, 1, 'R', true);
+			if (!$forManager) {
+				$this->pdf->Cell(35, 6, 'Стоимость', 1, 1, 'R', true);
+			} else {
+				$this->pdf->Ln();
+			}
 			$this->pdf->SetFont('dejavusans', '', 10);
 			
+			$descWidth = $forManager ? 115 : 80;
 			foreach ($operations as $op) {
-				// Вычисляем необходимую высоту для описания
 				$description = $op['operation_description'] ?? '';
-				$nb = $this->pdf->getNumLines($description, 80);
-				$rowHeight = $nb * 6; // 6 - базовая высота строки
-				
-				// Запоминаем позицию начала строки
+				$nb = $this->pdf->getNumLines($description, $descWidth);
+				$rowHeight = $nb * 6;
 				$startY = $this->pdf->GetY();
 				$startX = $this->pdf->GetX();
-				
-				// Рисуем ячейку с номером
 				$this->pdf->MultiCell(30, $rowHeight, $op['operation_number'] ?? '', 1, 'L', false, 0, $startX, $startY, true, 0, false, true, $rowHeight, 'M');
-				
-				// Рисуем ячейку с описанием (с переносом слов)
-				$this->pdf->MultiCell(80, $rowHeight, $description, 1, 'L', false, 0, $startX + 30, $startY, true, 0, false, true, $rowHeight, 'T');
-				
-				// Рисуем ячейку с коэффициентом
-				$this->pdf->MultiCell(35, $rowHeight, number_format($op['complexity_coefficient'] ?? 1, 2, '.', ' '), 1, 'C', false, 0, $startX + 110, $startY, true, 0, false, true, $rowHeight, 'M');
-				
-				// Рисуем ячейку со стоимостью
-				$this->pdf->MultiCell(35, $rowHeight, number_format($op['total_cost'] ?? 0, 2, '.', ' ') . ' руб', 1, 'R', false, 1, $startX + 145, $startY, true, 0, false, true, $rowHeight, 'M');
+				$this->pdf->MultiCell($descWidth, $rowHeight, $description, 1, 'L', false, 0, $startX + 30, $startY, true, 0, false, true, $rowHeight, 'T');
+				$ln = $forManager ? 1 : 0;
+				$this->pdf->MultiCell(35, $rowHeight, number_format($op['complexity_coefficient'] ?? 1, 2, '.', ' '), 1, 'C', false, $ln, $startX + 30 + $descWidth, $startY, true, 0, false, true, $rowHeight, 'M');
+				if (!$forManager) {
+					$this->pdf->MultiCell(35, $rowHeight, number_format($op['total_cost'] ?? 0, 2, '.', ' ') . ' руб', 1, 'R', false, 1, $startX + 30 + $descWidth + 35, $startY, true, 0, false, true, $rowHeight, 'M');
+				}
 			}
 		}
 	}

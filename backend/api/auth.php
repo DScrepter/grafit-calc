@@ -42,12 +42,18 @@ try {
 			$username = $data['username'] ?? '';
 			$email = $data['email'] ?? '';
 			$password = $data['password'] ?? '';
-			$first_name = $data['first_name'] ?? null;
-			$last_name = $data['last_name'] ?? null;
+			$first_name = trim((string)($data['first_name'] ?? ''));
+			$last_name = trim((string)($data['last_name'] ?? ''));
 
 			if (empty($username) || empty($email) || empty($password)) {
 				http_response_code(400);
 				echo json_encode(['error' => 'Необходимо заполнить все обязательные поля']);
+				exit;
+			}
+
+			if ($first_name === '' || $last_name === '') {
+				http_response_code(400);
+				echo json_encode(['error' => 'Необходимо указать имя и фамилию'], JSON_UNESCAPED_UNICODE);
 				exit;
 			}
 
@@ -62,7 +68,7 @@ try {
 				echo json_encode(['success' => true, 'message' => 'Регистрация успешна']);
 			} else {
 				http_response_code(400);
-				echo json_encode(['error' => 'Пользователь с таким именем или email уже существует']);
+				echo json_encode(['error' => 'Пользователь с таким именем или email уже существует или не указаны имя и фамилия'], JSON_UNESCAPED_UNICODE);
 			}
 		} elseif ($action === 'logout') {
 			$auth->logout();

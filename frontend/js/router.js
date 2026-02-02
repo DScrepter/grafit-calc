@@ -165,7 +165,7 @@ class Router {
 		// Навигация управляется серверной стороной через sidebar.php
 		// Здесь только обновляем активные пункты меню
 		if (!this.currentUser) return;
-		
+
 		// Обновление активных пунктов меню происходит в loadPage()
 	}
 
@@ -185,6 +185,12 @@ class Router {
 			// Проверка прав доступа
 			if (this.currentUser?.role === 'guest' && this.requiresAccess(pageId)) {
 				content.innerHTML = '<div class="error-message">У вас нет доступа к этой странице. Обратитесь к администратору для получения прав.</div>';
+				return;
+			}
+
+			// Менеджер: только калькулятор и изделия
+			if (this.currentUser?.role === 'user' && !['calculator', 'products'].includes(pageId)) {
+				content.innerHTML = '<div class="error-message">Доступ запрещён. Доступны только разделы Калькуляторы и Профиль.</div>';
 				return;
 			}
 

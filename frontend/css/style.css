@@ -154,42 +154,66 @@ body {
 
 .nav-tree {
 	list-style: none;
-	padding: 10px 0;
+	padding: 12px 0;
 	flex: 1;
 }
 
 .nav-group {
-	margin-bottom: 10px;
+	margin-bottom: 16px;
 }
 
 .nav-group-title {
 	display: block;
-	padding: 8px 20px;
+	padding: 12px 12px 6px;
 	font-weight: 600;
-	color: #666;
-	font-size: 12px;
+	color: #6b7280;
+	font-size: 11px;
 	text-transform: uppercase;
+	letter-spacing: 0.05em;
 }
 
 .nav-items {
 	list-style: none;
+	padding: 0 12px;
+	gap: 4px;
+	display: flex;
+	flex-direction: column;
 }
 
 .nav-items li {
-	padding: 10px 20px 10px 35px;
-	cursor: pointer;
-	color: #333;
-	transition: background-color 0.2s;
+	margin: 0;
+	padding: 0;
 }
 
-.nav-items li:hover {
-	background-color: #f0f0f0;
-}
-
-.nav-items li.active {
-	background-color: #e3f2fd;
-	color: #1976d2;
+/* Ссылки как кнопки: без подчёркивания, без смены цвета для :visited */
+.sidebar .nav-items li a {
+	display: block;
+	padding: 10px 14px;
+	border-radius: 8px;
+	text-decoration: none;
+	color: #374151;
 	font-weight: 500;
+	transition: background-color 0.15s ease, color 0.15s ease;
+	cursor: pointer;
+}
+
+.sidebar .nav-items li a:visited {
+	color: #374151;
+}
+
+.sidebar .nav-items li a:hover {
+	background-color: #f3f4f6;
+	color: #111827;
+}
+
+.sidebar .nav-items li.active a {
+	background-color: #eff6ff;
+	color: #2563eb;
+}
+
+.sidebar .nav-items li.active a:hover {
+	background-color: #dbeafe;
+	color: #1d4ed8;
 }
 
 .sidebar-footer {

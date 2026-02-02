@@ -16,7 +16,7 @@ try {
 	$auth->requireAuth();
 	
 	// Гости не имеют доступа к калькулятору
-	if (!$auth->canAccessReferences()) {
+	if (!$auth->canAccessCalculators()) {
 		http_response_code(403);
 		echo json_encode(['error' => 'Недостаточно прав доступа']);
 		exit;
@@ -76,7 +76,25 @@ try {
 					$paramLabelMap[$param['name']] = $param['label'];
 				}
 				$calculation['parameter_labels'] = $paramLabelMap;
-				
+
+				// Менеджер видит только итоговую цену и операции без стоимости
+				if ($auth->getUserRole() === 'user') {
+					$result = $calculation['result'] ?? [];
+					$safeResult = [];
+					foreach (['workpiece_volume', 'product_volume', 'waste_volume', 'workpiece_mass', 'product_mass', 'waste_mass', 'total_cost_with_margin'] as $key) {
+						if (array_key_exists($key, $result)) {
+							$safeResult[$key] = $result[$key];
+						}
+					}
+					$calculation['result'] = $safeResult;
+					$ops = $calculation['operations'] ?? [];
+					foreach ($ops as &$op) {
+						unset($op['total_cost'], $op['operation_cost'], $op['cost']);
+					}
+					unset($op);
+					$calculation['operations'] = $ops;
+				}
+
 				echo json_encode($calculation, JSON_UNESCAPED_UNICODE);
 			} else {
 				http_response_code(404);

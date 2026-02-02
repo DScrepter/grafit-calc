@@ -26,6 +26,8 @@
 						<li data-page="coefficients"><a href="/calculator?page=coefficients">Коэффициенты</a></li>
 					</ul>
 				</li>
+			<?php endif; ?>
+			<?php if ($auth->canAccessCalculators()): ?>
 				<li class="nav-group" id="calculatorsGroup">
 					<span class="nav-group-title">Калькуляторы</span>
 					<ul class="nav-items">

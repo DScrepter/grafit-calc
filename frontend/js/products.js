@@ -44,13 +44,15 @@ const ProductsPage = {
 			container.innerHTML = '<div class="empty-state">Нет сохраненных расчетов</div>';
 			return;
 		}
+		const isManager = window.router?.currentUser?.role === 'user';
+		const costColumnTitle = isManager ? 'Итоговая цена' : 'Стоимость изделия';
 
 		let html = '<table class="data-table">';
 		html += '<thead><tr>';
 		html += '<th>Название</th>';
 		html += '<th>Материал</th>';
 		html += '<th>Тип изделия</th>';
-		html += '<th>Стоимость изделия</th>';
+		html += '<th>' + costColumnTitle + '</th>';
 		html += '<th>Дата создания</th>';
 		html += '<th>Действия</th>';
 		html += '</tr></thead><tbody>';
@@ -123,6 +125,7 @@ const ProductsPage = {
 		const operations = calculation.operations || [];
 		const parameterLabels = calculation.parameter_labels || {};
 		const createdAt = new Date(calculation.created_at).toLocaleString('ru-RU');
+		const isManager = window.router?.currentUser?.role === 'user';
 
 		let html = '<div class="modal" style="display: flex;">';
 		html += '<div class="modal-content" style="max-width: 900px; max-height: 90vh; overflow-y: auto;">';
@@ -186,43 +189,40 @@ const ProductsPage = {
 			if (result.waste_mass !== undefined) {
 				html += '<tr><td>Масса отходов</td><td>' + this.formatNumber(result.waste_mass, 4) + ' кг</td></tr>';
 			}
-			if (result.material_cost !== undefined) {
-				html += '<tr><td>Стоимость материала</td><td>' + this.formatNumber(result.material_cost) + ' руб</td></tr>';
-			}
-			const salaryDisplay = result.salary_with_quantity_coef ?? result.total_operations_cost;
-			if (salaryDisplay !== undefined) {
-				html += '<tr><td>Зарплата (операции)</td><td>' + this.formatNumber(salaryDisplay) + ' руб</td></tr>';
-			}
-
-			// Коэффициенты / налоги
-			if ((result.coefficients && result.coefficients.length > 0) || result.ohr_cost !== undefined) {
-				html += '<tr><td colspan="2"><strong>Коэффициенты / налоги:</strong></td></tr>';
-				if (result.coefficients && result.coefficients.length > 0) {
-					result.coefficients.forEach(coef => {
-						html += '<tr>';
-						html += '<td>' + this.escapeHtml(coef.name) + ' (' + coef.value + '%)</td>';
-						html += '<td>' + this.formatNumber(coef.amount || 0) + ' руб</td>';
-						html += '</tr>';
-					});
+			if (!isManager) {
+				if (result.material_cost !== undefined) {
+					html += '<tr><td>Стоимость материала</td><td>' + this.formatNumber(result.material_cost) + ' руб</td></tr>';
 				}
-				if (result.ohr_cost !== undefined) {
-					const ohrLabel = result.ohr_coefficient != null ? 'ОХР (K = ' + result.ohr_coefficient + ')' : 'ОХР';
-					html += '<tr><td>' + ohrLabel + '</td><td>' + this.formatNumber(result.ohr_cost) + ' руб</td></tr>';
+				const salaryDisplay = result.salary_with_quantity_coef ?? result.total_operations_cost;
+				if (salaryDisplay !== undefined) {
+					html += '<tr><td>Зарплата (операции)</td><td>' + this.formatNumber(salaryDisplay) + ' руб</td></tr>';
+				}
+				if ((result.coefficients && result.coefficients.length > 0) || result.ohr_cost !== undefined) {
+					html += '<tr><td colspan="2"><strong>Коэффициенты / налоги:</strong></td></tr>';
+					if (result.coefficients && result.coefficients.length > 0) {
+						result.coefficients.forEach(coef => {
+							html += '<tr>';
+							html += '<td>' + this.escapeHtml(coef.name) + ' (' + coef.value + '%)</td>';
+							html += '<td>' + this.formatNumber(coef.amount || 0) + ' руб</td>';
+							html += '</tr>';
+						});
+					}
+					if (result.ohr_cost !== undefined) {
+						const ohrLabel = result.ohr_coefficient != null ? 'ОХР (K = ' + result.ohr_coefficient + ')' : 'ОХР';
+						html += '<tr><td>' + ohrLabel + '</td><td>' + this.formatNumber(result.ohr_cost) + ' руб</td></tr>';
+					}
+				}
+				if (result.total_cost_without_packaging !== undefined) {
+					html += '<tr><td><strong>Общая себестоимость</strong></td><td>' + this.formatNumber(result.total_cost_without_packaging) + ' руб</td></tr>';
 				}
 			}
 
 			html += '</tbody></table>';
 
-			// Общая себестоимость и с маржой
-			if (result.total_cost_without_packaging !== undefined) {
-				html += '<div class="result-row" style="margin-top: 20px; padding: 15px; background: #e3f2fd; border-radius: 4px; font-size: 18px;">';
-				html += '<span class="result-label" style="font-weight: 600;">Общая себестоимость:</span>';
-				html += '<span class="result-value" style="font-weight: bold; color: #1976d2;">' + this.formatNumber(result.total_cost_without_packaging) + ' руб</span>';
-				html += '</div>';
-			}
 			if (result.total_cost_with_margin !== undefined) {
+				const label = isManager ? 'Итоговая цена:' : 'Итого с маржой ' + (result.margin_percent != null ? result.margin_percent : 40) + '%:';
 				html += '<div class="result-row" style="margin-top: 8px; padding: 15px; background: #e8f5e9; border-radius: 4px; font-size: 18px;">';
-				html += '<span class="result-label" style="font-weight: 600;">Итого с маржой 40%:</span>';
+				html += '<span class="result-label" style="font-weight: 600;">' + label + '</span>';
 				html += '<span class="result-value" style="font-weight: bold; color: #2e7d32;">' + this.formatNumber(result.total_cost_with_margin) + ' руб</span>';
 				html += '</div>';
 			}
@@ -238,7 +238,7 @@ const ProductsPage = {
 			html += '<th>Номер</th>';
 			html += '<th>Описание</th>';
 			html += '<th>Коэф. сложности</th>';
-			html += '<th>Стоимость</th>';
+			if (!isManager) html += '<th>Стоимость</th>';
 			html += '</tr></thead>';
 			html += '<tbody>';
 			operations.forEach(op => {
@@ -246,7 +246,7 @@ const ProductsPage = {
 				html += '<td>' + this.escapeHtml(op.operation_number || '-') + '</td>';
 				html += '<td>' + this.escapeHtml(op.operation_description || '-') + '</td>';
 				html += '<td>' + this.formatNumber(op.complexity_coefficient || 1, 2) + '</td>';
-				html += '<td>' + this.formatNumber(op.total_cost || 0) + ' руб</td>';
+				if (!isManager) html += '<td>' + this.formatNumber(op.total_cost || 0) + ' руб</td>';
 				html += '</tr>';
 			});
 			html += '</tbody></table>';

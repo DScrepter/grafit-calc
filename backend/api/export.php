@@ -14,7 +14,7 @@ try {
 	$auth->requireAuth();
 	
 	// Гости не имеют доступа
-	if (!$auth->canAccessReferences()) {
+	if (!$auth->canAccessCalculators()) {
 		http_response_code(403);
 		echo json_encode(['error' => 'Недостаточно прав доступа']);
 		exit;
@@ -194,12 +194,14 @@ try {
 		}
 	}
 
+	$isManager = ($auth->getUserRole() === 'user');
+
 	if ($format === 'pdf') {
 		// Генерируем PDF на сервере
 		try {
 			require_once __DIR__ . '/../classes/PDFGenerator.php';
 			$pdfGenerator = new PDFGenerator();
-			$pdfGenerator->generateCalculationPDF($calculation, $parameters, $operations, $result, $paramLabelMap);
+			$pdfGenerator->generateCalculationPDF($calculation, $parameters, $operations, $result, $paramLabelMap, $isManager);
 			
 			$filename = ($calculation['product_name'] ?? 'calculation') . '.pdf';
 			$filename = preg_replace('/[^a-zA-Zа-яА-Я0-9\s\-_\.]/u', '', $filename);
@@ -236,7 +238,7 @@ try {
 	}
 	
 	// Формируем HTML для экспорта (для печати)
-	$html = generateExportHTML($calculation, $parameters, $operations, $result, $paramLabelMap ?? []);
+	$html = generateExportHTML($calculation, $parameters, $operations, $result, $paramLabelMap ?? [], $isManager);
 
 	// Возвращаем HTML
 	if (!headers_sent()) {
@@ -262,7 +264,7 @@ try {
 	echo json_encode(['error' => 'Критическая ошибка сервера'], JSON_UNESCAPED_UNICODE);
 }
 
-function generateExportHTML($calculation, $parameters, $operations, $result, $paramLabelMap = []) {
+function generateExportHTML($calculation, $parameters, $operations, $result, $paramLabelMap = [], $isManager = false) {
 	$productName = htmlspecialchars($calculation['product_name']);
 	$materialName = htmlspecialchars($calculation['material_name'] ?? '');
 	$productTypeName = htmlspecialchars($calculation['product_type_name'] ?? '');
@@ -423,7 +425,9 @@ function generateExportHTML($calculation, $parameters, $operations, $result, $pa
 				<tr>
 					<td>Масса отходов</td>
 					<td>' . number_format($result['waste_mass'] ?? 0, 4, '.', ' ') . ' кг</td>
-				</tr>
+				</tr>';
+		if (!$isManager) {
+			$html .= '
 				<tr>
 					<td>Стоимость материала</td>
 					<td>' . number_format($result['material_cost'] ?? 0, 2, '.', ' ') . ' руб</td>
@@ -432,35 +436,36 @@ function generateExportHTML($calculation, $parameters, $operations, $result, $pa
 					<td>Зарплата (операции)</td>
 					<td>' . number_format($result['salary_with_quantity_coef'] ?? $result['total_operations_cost'] ?? 0, 2, '.', ' ') . ' руб</td>
 				</tr>';
-
-		if (!empty($result['coefficients']) || isset($result['ohr_cost'])) {
-			$html .= '<tr>
-				<td colspan="2"><strong>Коэффициенты / налоги:</strong></td>
-			</tr>';
-			foreach ($result['coefficients'] ?? [] as $coef) {
+			if (!empty($result['coefficients']) || isset($result['ohr_cost'])) {
 				$html .= '<tr>
-					<td>' . htmlspecialchars($coef['name']) . ' (' . $coef['value'] . '%)</td>
-					<td>' . number_format($coef['amount'] ?? 0, 2, '.', ' ') . ' руб</td>
+					<td colspan="2"><strong>Коэффициенты / налоги:</strong></td>
 				</tr>';
+				foreach ($result['coefficients'] ?? [] as $coef) {
+					$html .= '<tr>
+						<td>' . htmlspecialchars($coef['name']) . ' (' . $coef['value'] . '%)</td>
+						<td>' . number_format($coef['amount'] ?? 0, 2, '.', ' ') . ' руб</td>
+					</tr>';
+				}
+				if (isset($result['ohr_cost'])) {
+					$ohrLabel = isset($result['ohr_coefficient']) ? 'ОХР (K = ' . $result['ohr_coefficient'] . ')' : 'ОХР';
+					$html .= '<tr>
+						<td>' . $ohrLabel . '</td>
+						<td>' . number_format($result['ohr_cost'], 2, '.', ' ') . ' руб</td>
+					</tr>';
+				}
 			}
-			if (isset($result['ohr_cost'])) {
-				$ohrLabel = isset($result['ohr_coefficient']) ? 'ОХР (K = ' . $result['ohr_coefficient'] . ')' : 'ОХР';
-				$html .= '<tr>
-					<td>' . $ohrLabel . '</td>
-					<td>' . number_format($result['ohr_cost'], 2, '.', ' ') . ' руб</td>
-				</tr>';
-			}
-		}
-
-		$html .= '</table>
+			$html .= '</table>
 		<div class="total">
 			Общая себестоимость: ' . number_format($result['total_cost_without_packaging'] ?? 0, 2, '.', ' ') . ' руб
 		</div>';
+		} else {
+			$html .= '</table>';
+		}
 		if (isset($result['total_cost_with_margin'])) {
-			$marginPct = $result['margin_percent'] ?? 40;
+			$label = $isManager ? 'Итоговая цена:' : ('Итого с маржой ' . ($result['margin_percent'] ?? 40) . '%:');
 			$html .= '
 		<div class="total" style="margin-top: 8px; font-size: 1.1em;">
-			Итого с маржой ' . $marginPct . '%: ' . number_format($result['total_cost_with_margin'], 2, '.', ' ') . ' руб
+			' . $label . ' ' . number_format($result['total_cost_with_margin'], 2, '.', ' ') . ' руб
 		</div>';
 		}
 		$html .= '
@@ -476,8 +481,11 @@ function generateExportHTML($calculation, $parameters, $operations, $result, $pa
 					<tr>
 						<th>Номер</th>
 						<th>Описание</th>
-						<th>Коэф. сложности</th>
-						<th>Стоимость</th>
+						<th>Коэф. сложности</th>';
+		if (!$isManager) {
+			$html .= '<th>Стоимость</th>';
+		}
+		$html .= '
 					</tr>
 				</thead>
 				<tbody>';
@@ -485,8 +493,11 @@ function generateExportHTML($calculation, $parameters, $operations, $result, $pa
 			$html .= '<tr>
 				<td>' . htmlspecialchars($op['operation_number'] ?? '') . '</td>
 				<td>' . htmlspecialchars($op['operation_description'] ?? '') . '</td>
-				<td>' . number_format($op['complexity_coefficient'] ?? 1, 2, '.', ' ') . '</td>
-				<td>' . number_format($op['total_cost'] ?? 0, 2, '.', ' ') . ' руб</td>
+				<td>' . number_format($op['complexity_coefficient'] ?? 1, 2, '.', ' ') . '</td>';
+			if (!$isManager) {
+				$html .= '<td>' . number_format($op['total_cost'] ?? 0, 2, '.', ' ') . ' руб</td>';
+			}
+			$html .= '
 			</tr>';
 		}
 		$html .= '</tbody></table></div>';

@@ -10,7 +10,7 @@ if (!$auth->isLoggedIn()) {
 }
 
 // Гости не имеют доступа к калькулятору - перенаправляем на профиль
-if (!$auth->canAccessReferences()) {
+if (!$auth->canAccessCalculators()) {
 	header('Location: /profile');
 	exit;
 }

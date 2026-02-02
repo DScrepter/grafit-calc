@@ -65,7 +65,8 @@ const UsersPage = {
 								<label for="userRole">Роль *</label>
 								<select id="userRole" name="role" required>
 									<option value="guest">Гость</option>
-									<option value="user">Пользователь</option>
+									<option value="user">Менеджер</option>
+									<option value="leader">Руководитель</option>
 									<option value="support">Техподдержка</option>
 									<option value="admin">Администратор</option>
 									<option value="super_admin" id="superAdminOption" style="display: none;">Супер-администратор</option>
@@ -95,9 +96,9 @@ const UsersPage = {
 		try {
 			const authData = await API.checkAuth();
 			if (authData.logged_in && authData.user) {
-				this.isSupport = authData.user.role === 'support' || 
-				                authData.user.role === 'super_admin' || 
-				                authData.user.role === 'admin';
+				this.isSupport = authData.user.role === 'support' ||
+					authData.user.role === 'super_admin' ||
+					authData.user.role === 'admin';
 			}
 		} catch (error) {
 			console.error('Ошибка проверки роли:', error);
@@ -169,7 +170,7 @@ const UsersPage = {
 		headers.forEach(header => {
 			const column = header.dataset.column;
 			header.classList.remove('sorted-asc', 'sorted-desc');
-			
+
 			if (this.currentSort.column === column) {
 				header.classList.add(this.currentSort.direction === 'asc' ? 'sorted-asc' : 'sorted-desc');
 			}
@@ -180,7 +181,7 @@ const UsersPage = {
 		const tbody = document.getElementById('usersTableBody');
 		try {
 			this.users = await API.getUsers();
-			
+
 			if (this.users.length === 0) {
 				tbody.innerHTML = '<tr><td colspan="9" class="text-center">Пользователи не найдены</td></tr>';
 				return;
@@ -189,10 +190,10 @@ const UsersPage = {
 			if (!this.currentSort.column) {
 				this.currentSort = { column: 'id', direction: 'asc' };
 			}
-			
+
 			const column = this.currentSort.column;
 			const direction = this.currentSort.direction;
-			
+
 			this.users.sort((a, b) => {
 				let aVal = a[column];
 				let bVal = b[column];
@@ -229,12 +230,13 @@ const UsersPage = {
 				'super_admin': 'Супер-администратор',
 				'admin': 'Администратор',
 				'support': 'Техподдержка',
-				'user': 'Пользователь',
+				'user': 'Менеджер',
+				'leader': 'Руководитель',
 				'guest': 'Гость'
 			};
 			const roleName = roleNames[user.role] || user.role;
 			const createdDate = new Date(user.created_at).toLocaleDateString('ru-RU');
-			
+
 			// Иконка чата (только для поддержки и не для админов/поддержки)
 			let chatIconHtml = '';
 			if (this.isSupport && user.role !== 'support' && user.role !== 'super_admin' && user.role !== 'admin') {
@@ -282,7 +284,7 @@ const UsersPage = {
 			const form = document.getElementById('userForm');
 			const superAdminOption = document.getElementById('superAdminOption');
 			const warning = document.getElementById('superAdminWarning');
-			
+
 			// Получаем текущего пользователя из роутера или через API
 			let currentUser = window.router?.currentUser || null;
 			if (!currentUser) {
@@ -299,7 +301,7 @@ const UsersPage = {
 					console.error('Error getting current user:', error);
 				}
 			}
-			
+
 			const isSuperAdmin = currentUser && currentUser.role === 'super_admin';
 			const isEditingSuperAdmin = user.role === 'super_admin';
 
@@ -386,7 +388,7 @@ const UsersPage = {
 			await API.updateUser(formData);
 			this.closeModal();
 			await this.loadUsers();
-			
+
 			// Если изменили свою роль, перезагружаем страницу
 			if (currentUser && formData.id === currentUser.id && formData.role !== currentUser.role) {
 				window.location.reload();

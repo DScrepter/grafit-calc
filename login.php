@@ -57,6 +57,14 @@ require __DIR__ . '/templates/header.php';
 					<input type="email" id="reg_email" name="email" required>
 				</div>
 				<div class="form-group">
+					<label for="reg_last_name">Фамилия</label>
+					<input type="text" id="reg_last_name" name="last_name" required>
+				</div>
+				<div class="form-group">
+					<label for="reg_first_name">Имя</label>
+					<input type="text" id="reg_first_name" name="first_name" required>
+				</div>
+				<div class="form-group">
 					<label for="reg_password">Пароль</label>
 					<div class="password-input-wrapper">
 						<input type="password" id="reg_password" name="password" required>

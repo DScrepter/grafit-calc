@@ -240,17 +240,19 @@ const CalculatorPage = {
 	renderOperations() {
 		const container = document.getElementById('operationsList');
 		container.innerHTML = '';
+		const isManager = window.router?.currentUser?.role === 'user';
 
 		this.operations.forEach((op, index) => {
 			const item = document.createElement('div');
 			item.className = 'operation-item';
+			const costBlock = isManager ? '' : `<div class="operation-cost">${(op.total_cost != null ? op.total_cost : 0).toFixed(2)} руб</div>`;
 			item.innerHTML = `
 				<div class="operation-info">
 					<div class="operation-number">${op.operation_number}</div>
 					<div class="operation-description">${op.operation_description}</div>
 					<div>Коэф. сложности: ${op.complexity_coefficient}</div>
 				</div>
-				<div class="operation-cost">${op.total_cost.toFixed(2)} руб</div>
+				${costBlock}
 				<button type="button" class="btn btn-danger btn-small" onclick="CalculatorPage.removeOperation(${index})">Удалить</button>
 			`;
 			container.appendChild(item);
@@ -322,6 +324,7 @@ const CalculatorPage = {
 	showResults(result) {
 		const container = document.getElementById('results');
 		container.style.display = 'block';
+		const isManager = window.router?.currentUser?.role === 'user';
 
 		let html = '<h3>Результаты расчета</h3>';
 		html += '<div class="result-row"><span class="result-label">Изделие:</span><span class="result-value">' + result.product_name + '</span></div>';
@@ -334,29 +337,31 @@ const CalculatorPage = {
 		html += '<div class="result-row"><span class="result-label">Масса заготовки:</span><span class="result-value">' + result.workpiece_mass.toFixed(4) + ' кг</span></div>';
 		html += '<div class="result-row"><span class="result-label">Масса изделия:</span><span class="result-value">' + result.product_mass.toFixed(4) + ' кг</span></div>';
 		html += '<div class="result-row"><span class="result-label">Масса отходов:</span><span class="result-value">' + result.waste_mass.toFixed(4) + ' кг</span></div>';
-		html += '<hr style="margin: 15px 0;">';
-		html += '<div class="result-row"><span class="result-label">Стоимость материала:</span><span class="result-value">' + result.material_cost.toFixed(2) + ' руб</span></div>';
-		const salaryDisplay = result.salary_with_quantity_coef ?? result.total_operations_cost ?? 0;
-		const salaryLabel = (result.quantity_coefficient === 1.5) ? 'Зарплата (операции, K=1.5 за мелкий заказ):' : 'Зарплата (операции):';
-		html += '<div class="result-row"><span class="result-label">' + salaryLabel + '</span><span class="result-value">' + salaryDisplay.toFixed(2) + ' руб</span></div>';
 
-		if ((result.coefficients && result.coefficients.length > 0) || result.ohr_cost !== undefined) {
-			html += '<div style="margin-top: 10px;"><strong>Коэффициенты / налоги:</strong></div>';
-			if (result.coefficients && result.coefficients.length > 0) {
-				result.coefficients.forEach(coef => {
-					html += `<div class="result-row"><span class="result-label">${coef.name} (${coef.value}%):</span><span class="result-value">${(coef.amount ?? 0).toFixed(2)} руб</span></div>`;
-				});
+		if (!isManager) {
+			html += '<hr style="margin: 15px 0;">';
+			html += '<div class="result-row"><span class="result-label">Стоимость материала:</span><span class="result-value">' + (result.material_cost || 0).toFixed(2) + ' руб</span></div>';
+			const salaryDisplay = result.salary_with_quantity_coef ?? result.total_operations_cost ?? 0;
+			const salaryLabel = (result.quantity_coefficient === 1.5) ? 'Зарплата (операции, K=1.5 за мелкий заказ):' : 'Зарплата (операции):';
+			html += '<div class="result-row"><span class="result-label">' + salaryLabel + '</span><span class="result-value">' + salaryDisplay.toFixed(2) + ' руб</span></div>';
+			if ((result.coefficients && result.coefficients.length > 0) || result.ohr_cost !== undefined) {
+				html += '<div style="margin-top: 10px;"><strong>Коэффициенты / налоги:</strong></div>';
+				if (result.coefficients && result.coefficients.length > 0) {
+					result.coefficients.forEach(coef => {
+						html += `<div class="result-row"><span class="result-label">${coef.name} (${coef.value}%):</span><span class="result-value">${(coef.amount ?? 0).toFixed(2)} руб</span></div>`;
+					});
+				}
+				if (result.ohr_cost !== undefined) {
+					const ohrLabel = (result.ohr_coefficient != null) ? 'ОХР (K = ' + result.ohr_coefficient + '):' : 'ОХР:';
+					html += '<div class="result-row"><span class="result-label">' + ohrLabel + '</span><span class="result-value">' + result.ohr_cost.toFixed(2) + ' руб</span></div>';
+				}
 			}
-			if (result.ohr_cost !== undefined) {
-				const ohrLabel = (result.ohr_coefficient != null) ? 'ОХР (K = ' + result.ohr_coefficient + '):' : 'ОХР:';
-				html += '<div class="result-row"><span class="result-label">' + ohrLabel + '</span><span class="result-value">' + result.ohr_cost.toFixed(2) + ' руб</span></div>';
-			}
+			html += '<hr style="margin: 15px 0;">';
+			html += '<div class="result-row"><span class="result-label">Общая себестоимость:</span><span class="result-value">' + (result.total_cost_without_packaging ?? 0).toFixed(2) + ' руб</span></div>';
 		}
 
-		html += '<hr style="margin: 15px 0;">';
-		html += '<div class="result-row"><span class="result-label">Общая себестоимость:</span><span class="result-value">' + (result.total_cost_without_packaging ?? 0).toFixed(2) + ' руб</span></div>';
 		if (result.total_cost_with_margin !== undefined) {
-			const marginLabel = (result.margin_percent != null) ? 'Итого с маржой ' + result.margin_percent + '%:' : 'Итого с маржой:';
+			const marginLabel = isManager ? 'Итоговая цена:' : ((result.margin_percent != null) ? 'Итого с маржой ' + result.margin_percent + '%:' : 'Итого с маржой:');
 			html += '<div class="result-row" style="font-weight: 600;"><span class="result-label">' + marginLabel + '</span><span class="result-value">' + result.total_cost_with_margin.toFixed(2) + ' руб</span></div>';
 		}
 
@@ -496,6 +501,7 @@ const CalculatorPage = {
 			? [u.last_name, u.first_name].filter(Boolean).join(' ').trim()
 			: (u && u.username) ? u.username + (u.email ? ' (' + u.email + ')' : '') : '-';
 		const managerNote = (data.manager_note != null ? data.manager_note : document.getElementById('managerNote')?.value?.trim()) || '-';
+		const isManager = window.router?.currentUser?.role === 'user';
 
 		let html = `<!DOCTYPE html>
 <html lang="ru">
@@ -646,7 +652,9 @@ const CalculatorPage = {
 				<tr>
 					<td>Масса отходов</td>
 					<td>${this.formatNumber(result.waste_mass || 0, 4)} кг</td>
-				</tr>
+				</tr>`;
+			if (!isManager) {
+				html += `
 				<tr>
 					<td>Стоимость материала</td>
 					<td>${this.formatNumber(result.material_cost || 0, 2)} руб</td>
@@ -655,37 +663,37 @@ const CalculatorPage = {
 					<td>Зарплата (операции)</td>
 					<td>${this.formatNumber(result.salary_with_quantity_coef ?? result.total_operations_cost ?? 0, 2)} руб</td>
 				</tr>`;
-
-			if ((result.coefficients && result.coefficients.length > 0) || result.ohr_cost !== undefined) {
-				html += `<tr>
-					<td colspan="2"><strong>Коэффициенты / налоги:</strong></td>
-				</tr>`;
-				if (result.coefficients && result.coefficients.length > 0) {
-					result.coefficients.forEach(coef => {
-						html += `<tr>
-							<td>${this.escapeHtml(coef.name)} (${coef.value}%)</td>
-							<td>${this.formatNumber(coef.amount || 0, 2)} руб</td>
-						</tr>`;
-					});
-				}
-				if (result.ohr_cost !== undefined) {
-					const ohrLabel = (result.ohr_coefficient != null) ? 'ОХР (K = ' + result.ohr_coefficient + ')' : 'ОХР';
+				if ((result.coefficients && result.coefficients.length > 0) || result.ohr_cost !== undefined) {
 					html += `<tr>
-						<td>${ohrLabel}</td>
-						<td>${this.formatNumber(result.ohr_cost, 2)} руб</td>
+						<td colspan="2"><strong>Коэффициенты / налоги:</strong></td>
 					</tr>`;
+					if (result.coefficients && result.coefficients.length > 0) {
+						result.coefficients.forEach(coef => {
+							html += `<tr>
+								<td>${this.escapeHtml(coef.name)} (${coef.value}%)</td>
+								<td>${this.formatNumber(coef.amount || 0, 2)} руб</td>
+							</tr>`;
+						});
+					}
+					if (result.ohr_cost !== undefined) {
+						const ohrLabel = (result.ohr_coefficient != null) ? 'ОХР (K = ' + result.ohr_coefficient + ')' : 'ОХР';
+						html += `<tr>
+							<td>${ohrLabel}</td>
+							<td>${this.formatNumber(result.ohr_cost, 2)} руб</td>
+						</tr>`;
+					}
 				}
-			}
-
-			html += `</table>
+				html += `</table>
 			<div class="total">
 				Общая себестоимость: ${this.formatNumber(result.total_cost_without_packaging || 0, 2)} руб
 			</div>`;
+			} else {
+				html += `</table>`;
+			}
 			if (result.total_cost_with_margin !== undefined) {
-				const marginPct = (result.margin_percent != null) ? result.margin_percent : 40;
 				html += `
 			<div class="total" style="margin-top: 8px; font-size: 1.1em;">
-				Итого с маржой ${marginPct}%: ${this.formatNumber(result.total_cost_with_margin, 2)} руб
+				${isManager ? 'Итоговая цена:' : 'Итого с маржой ' + ((result.margin_percent != null) ? result.margin_percent : 40) + '%:'} ${this.formatNumber(result.total_cost_with_margin, 2)} руб
 			</div>`;
 			}
 			html += `</div>`;
@@ -700,8 +708,9 @@ const CalculatorPage = {
 					<tr>
 						<th>Номер</th>
 						<th>Описание</th>
-						<th>Коэф. сложности</th>
-						<th>Стоимость</th>
+						<th>Коэф. сложности</th>`;
+			if (!isManager) html += `<th>Стоимость</th>`;
+			html += `
 					</tr>
 				</thead>
 				<tbody>`;
@@ -709,9 +718,9 @@ const CalculatorPage = {
 				html += `<tr>
 					<td>${this.escapeHtml(op.operation_number || '')}</td>
 					<td>${this.escapeHtml(op.operation_description || '')}</td>
-					<td>${this.formatNumber(op.complexity_coefficient || 1, 2)}</td>
-					<td>${this.formatNumber(op.total_cost || 0, 2)} руб</td>
-				</tr>`;
+					<td>${this.formatNumber(op.complexity_coefficient || 1, 2)}</td>`;
+				if (!isManager) html += `<td>${this.formatNumber(op.total_cost || 0, 2)} руб</td>`;
+				html += `</tr>`;
 			});
 			html += `</tbody></table></div>`;
 		}
@@ -764,9 +773,13 @@ const OperationsDialog = {
 	async loadOperations() {
 		const operations = await API.getOperations();
 		this.allOperations = operations;
+		const isManager = window.router?.currentUser?.role === 'user';
 
 		const tbody = document.querySelector('#operationsDialogTable tbody');
 		tbody.innerHTML = '';
+
+		const costTh = document.querySelector('#operationsDialogTable thead th[data-sort="cost"]');
+		if (costTh) costTh.style.display = isManager ? 'none' : '';
 
 		operations.forEach(op => {
 			const materialMarks = op.material_marks || '';
@@ -774,12 +787,13 @@ const OperationsDialog = {
 			row.dataset.operationId = op.id;
 			row.dataset.description = op.description || '';
 			row.dataset.materialMarks = materialMarks;
+			const costTd = isManager ? '' : `<td>${(op.cost != null ? parseFloat(op.cost).toFixed(2) : '-')}</td>`;
 			row.innerHTML = `
 				<td>${op.number}</td>
 				<td>${op.description}</td>
 				<td>${materialMarks || '-'}</td>
 				<td>${op.unit_name || '-'}</td>
-				<td>${parseFloat(op.cost).toFixed(2)}</td>
+				${costTd}
 			`;
 			row.addEventListener('click', () => {
 				document.querySelectorAll('#operationsDialogTable tbody tr').forEach(r => r.classList.remove('selected'));
@@ -815,14 +829,15 @@ function confirmOperationSelection() {
 
 	const coefficient = parseFloat(document.getElementById('complexityCoefficient').value);
 	const operation = OperationsDialog.selectedOperation;
+	const cost = operation.cost != null ? parseFloat(operation.cost) : 0;
 
 	const result = {
 		operation_id: operation.id,
 		operation_number: operation.number,
 		operation_description: operation.description,
-		operation_cost: parseFloat(operation.cost),
+		operation_cost: cost,
 		complexity_coefficient: coefficient,
-		total_cost: parseFloat(operation.cost) * coefficient
+		total_cost: cost * coefficient
 	};
 
 	OperationsDialog.resolve(result);

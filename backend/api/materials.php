@@ -14,16 +14,26 @@ require_once __DIR__ . '/../classes/Logger.php';
 try {
 	$auth = new Auth();
 	$auth->requireAuth();
-	
-	// Гости не имеют доступа к справочникам
-	if (!$auth->canAccessReferences()) {
-		http_response_code(403);
-		echo json_encode(['error' => 'Недостаточно прав доступа']);
-		exit;
+
+	$method = $_SERVER['REQUEST_METHOD'];
+
+	// Чтение (GET) доступно всем, кто может пользоваться калькулятором (в т.ч. Менеджер)
+	if ($method === 'GET') {
+		if (!$auth->canAccessCalculators()) {
+			http_response_code(403);
+			echo json_encode(['error' => 'Недостаточно прав доступа']);
+			exit;
+		}
+	} else {
+		// Редактирование — только при доступе к справочникам
+		if (!$auth->canAccessReferences()) {
+			http_response_code(403);
+			echo json_encode(['error' => 'Недостаточно прав доступа']);
+			exit;
+		}
 	}
 
 	$manager = new MaterialManager();
-	$method = $_SERVER['REQUEST_METHOD'];
 
 	switch ($method) {
 	case 'GET':

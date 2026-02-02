@@ -70,6 +70,13 @@ class Auth {
 			return false; // Некорректное имя пользователя
 		}
 
+		// Фамилия и имя обязательны
+		$first = trim((string)$first_name);
+		$last = trim((string)$last_name);
+		if ($first === '' || $last === '') {
+			return false; // Не указаны имя или фамилия
+		}
+
 		// Проверяем, существует ли пользователь
 		$existing = $this->db->fetchOne(
 			"SELECT id FROM users WHERE username = ? OR email = ?",
@@ -96,7 +103,7 @@ class Auth {
 		if ($hasNewFields) {
 			$this->db->execute(
 				"INSERT INTO users (username, email, password_hash, first_name, last_name, role) VALUES (?, ?, ?, ?, ?, 'guest')",
-				[$username, $email, $passwordHash, $first_name, $last_name]
+				[$username, $email, $passwordHash, $first, $last]
 			);
 		} else {
 			$this->db->execute(
@@ -158,19 +165,37 @@ class Auth {
 		return $role === 'super_admin' || $role === 'support';
 	}
 
-	public function canAccessReferences() {
+	/**
+	 * Доступ к калькулятору и изделиям (все кроме гостя).
+	 */
+	public function canAccessCalculators() {
 		$role = $this->getUserRole();
-		// Если роль не установлена (старая БД), разрешаем доступ (обратная совместимость)
 		if ($role === null) {
 			return true;
 		}
-		return in_array($role, ['super_admin', 'admin', 'user']);
+		return in_array($role, ['super_admin', 'admin', 'support', 'user', 'leader']);
 	}
 
+	/**
+	 * Доступ к справочникам (Менеджер не видит).
+	 */
+	public function canAccessReferences() {
+		$role = $this->getUserRole();
+		if ($role === null) {
+			return true;
+		}
+		return in_array($role, ['super_admin', 'admin', 'support', 'leader']);
+	}
+
+	/**
+	 * Доступ к разделу Администрирование (Руководитель не видит).
+	 */
 	public function canManageUsers() {
 		$role = $this->getUserRole();
-		// Если роль не установлена (старая БД), запрещаем управление пользователями
 		if ($role === null) {
+			return false;
+		}
+		if ($role === 'leader') {
 			return false;
 		}
 		return $this->isAdmin() || $role === 'support';
