@@ -80,18 +80,18 @@ const CalculatorPage = {
 			</div>
 		`;
 
-		// Проверяем, есть ли ID расчета в URL для редактирования
+		// Сначала загружаем справочники, чтобы селекты были заполнены до режима редактирования
+		await this.loadMaterials();
+		await this.loadProductTypes();
+
 		const urlParams = new URLSearchParams(window.location.search);
 		const calculationId = urlParams.get('edit');
 		if (calculationId) {
 			await this.loadCalculationForEdit(calculationId);
 		} else {
-			// Если не режим редактирования, очищаем список операций
 			this.renderOperations();
 		}
 
-		await this.loadMaterials();
-		await this.loadProductTypes();
 		this.setupForm();
 	},
 
@@ -118,13 +118,9 @@ const CalculatorPage = {
 			option.dataset.type = JSON.stringify(type);
 			select.appendChild(option);
 		});
-
-		select.addEventListener('change', () => {
-			this.loadParameters();
-		});
 	},
 
-	loadParameters() {
+	loadParameters(initialValues = {}) {
 		const select = document.getElementById('productTypeSelect');
 		const selectedOption = select.options[select.selectedIndex];
 		if (!selectedOption || !selectedOption.dataset.type) {
@@ -134,18 +130,22 @@ const CalculatorPage = {
 		}
 
 		const productType = JSON.parse(selectedOption.dataset.type);
-		this.currentProductType = productType; // Сохраняем тип изделия для экспорта
+		this.currentProductType = productType;
 		const container = document.getElementById('parametersContainer');
 		container.innerHTML = '';
 
 		productType.parameters.forEach(param => {
+			const savedVal = initialValues[param.name];
+			const value = savedVal !== undefined && savedVal !== null && savedVal !== ''
+				? savedVal
+				: (param.default_value ?? '');
 			const group = document.createElement('div');
 			group.className = 'form-group';
 			group.innerHTML = `
 				<label for="param_${param.name}">${param.label} (${param.unit})${param.required ? ' *' : ''}</label>
 				<input type="number" id="param_${param.name}" name="${param.name}" 
 					step="0.01" ${param.required ? 'required' : ''} 
-					${param.default_value ? `value="${param.default_value}"` : ''}>
+					value="${this.escapeHtml(String(value))}">
 			`;
 			container.appendChild(group);
 		});
@@ -155,6 +155,10 @@ const CalculatorPage = {
 		document.getElementById('calculatorForm').addEventListener('submit', async (e) => {
 			e.preventDefault();
 			await this.calculate();
+		});
+		// При смене типа изделия перестраиваем параметры (без сохранённых значений — новый тип)
+		document.getElementById('productTypeSelect').addEventListener('change', () => {
+			this.loadParameters();
 		});
 		// Переключатель: ручная масса заготовки
 		const massSourceRadios = document.querySelectorAll('input[name="massSource"]');
@@ -177,30 +181,15 @@ const CalculatorPage = {
 				return;
 			}
 
-			// Заполняем форму
+			// Заполняем форму (материалы и типы уже загружены в load())
 			document.getElementById('productName').value = calculation.product_name || '';
 			document.getElementById('materialSelect').value = calculation.material_id || '';
 			document.getElementById('productTypeSelect').value = calculation.product_type_id || '';
 			const qtyInput = document.getElementById('quantityInput');
 			if (qtyInput) qtyInput.value = calculation.result?.quantity ?? 5;
 
-			// Загружаем параметры после выбора типа изделия
 			if (calculation.product_type_id) {
-				await this.loadProductTypes();
-				document.getElementById('productTypeSelect').value = calculation.product_type_id;
-				this.loadParameters();
-
-				// Заполняем параметры после небольшой задержки
-				setTimeout(() => {
-					if (calculation.parameters) {
-						Object.keys(calculation.parameters).forEach(key => {
-							const input = document.getElementById(`param_${key}`);
-							if (input) {
-								input.value = calculation.parameters[key];
-							}
-						});
-					}
-				}, 100);
+				this.loadParameters(calculation.parameters || {});
 			}
 
 			// Загружаем операции
