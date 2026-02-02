@@ -7,6 +7,8 @@ class Assets {
 	private static $scripts = [];
 	private static $base_path = '';
 	private static $initialized = false;
+	/** Корень проекта (public) для расчёта filemtime — cache busting */
+	private static $doc_root;
 	
 	/**
 	 * Инициализация - определяем базовый путь и автоматически подключаем все ассеты
@@ -18,6 +20,7 @@ class Assets {
 			return;
 		}
 		
+		self::$doc_root = dirname(dirname(__DIR__));
 		// Всегда используем корневой путь, так как теперь все страницы через SPA
 		self::$base_path = '';
 		// Автоматически подключаем все ассеты
@@ -56,12 +59,23 @@ class Assets {
 	}
 	
 	/**
+	 * Версия для cache busting: filemtime файла или fallback
+	 */
+	private static function asset_version($src, $fallback = '1.0') {
+		if (empty(self::$doc_root)) {
+			return $fallback;
+		}
+		$path = self::$doc_root . '/' . $src;
+		return file_exists($path) ? (string) filemtime($path) : $fallback;
+	}
+
+	/**
 	 * Вывести стили в head
 	 */
 	public static function wp_head() {
 		foreach (self::$styles as $handle => $style) {
 			$src = self::$base_path . $style['src'];
-			$ver = $style['version'] ? '?v=' . $style['version'] : '';
+			$ver = '?v=' . self::asset_version($style['src'], $style['version']);
 			echo '<link rel="stylesheet" href="' . htmlspecialchars($src) . $ver . '">' . "\n\t";
 		}
 	}
@@ -73,7 +87,7 @@ class Assets {
 		foreach (self::$scripts as $handle => $script) {
 			if ($script['in_footer'] === $in_footer) {
 				$src = self::$base_path . $script['src'];
-				$ver = $script['version'] ? '?v=' . $script['version'] : '';
+				$ver = '?v=' . self::asset_version($script['src'], $script['version']);
 				echo '<script src="' . htmlspecialchars($src) . $ver . '"></script>' . "\n\t";
 			}
 		}
