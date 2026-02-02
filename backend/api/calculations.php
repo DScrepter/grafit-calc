@@ -92,7 +92,7 @@ try {
 			$calculations = $db->fetchAll(
 				"SELECT c.id, c.product_name, c.created_at, {$updatedAtField}
 					m.mark as material_name, pt.name as product_type_name,
-					JSON_EXTRACT(c.result, '$.total_cost_without_packaging') as total_cost
+					COALESCE(JSON_UNQUOTE(JSON_EXTRACT(c.result, '$.total_cost_with_margin')), JSON_UNQUOTE(JSON_EXTRACT(c.result, '$.total_cost_without_packaging'))) as total_cost
 				FROM calculations c
 				LEFT JOIN materials m ON c.material_id = m.id
 				LEFT JOIN product_types pt ON c.product_type_id = pt.id

@@ -46,14 +46,16 @@ const CalculatorPage = {
 
 					<div class="field-group" id="massSourceGroup">
 						<div class="field-group-title">Масса заготовки</div>
-						<div class="form-row">
-							<div class="form-group">
-								<label><input type="radio" name="massSource" value="byDimensions" checked> Рассчитать по габаритам и типу изделия</label>
+						<div class="toggle-row">
+							<div class="toggle-segments">
+								<div class="form-group toggle-segment">
+									<label><input type="radio" name="massSource" value="byDimensions" checked> Рассчитать по габаритам и типу изделия</label>
+								</div>
+								<div class="form-group toggle-segment">
+									<label><input type="radio" name="massSource" value="manual"> Указать вручную (кг)</label>
+								</div>
 							</div>
-							<div class="form-group">
-								<label><input type="radio" name="massSource" value="manual"> Указать вручную (кг)</label>
-							</div>
-							<div class="form-group" id="workpieceMassManualGroup" style="display: none;">
+							<div class="form-group form-group--manual-mass" id="workpieceMassManualGroup" style="display: none;">
 								<label for="workpieceMassInput">Масса заготовки (кг)</label>
 								<input type="number" id="workpieceMassInput" min="0.001" step="0.001" placeholder="кг">
 							</div>
@@ -302,6 +304,8 @@ const CalculatorPage = {
 			};
 
 			this.showResults(result);
+			// Автосохранение после расчёта
+			await this.saveCalculation(true);
 		} catch (error) {
 			alert('Ошибка расчета: ' + error.message);
 		}
@@ -348,9 +352,8 @@ const CalculatorPage = {
 			html += '<div class="result-row" style="font-weight: 600;"><span class="result-label">' + marginLabel + '</span><span class="result-value">' + result.total_cost_with_margin.toFixed(2) + ' руб</span></div>';
 		}
 
-		// Кнопки действий
+		// Кнопки действий (сохранение выполняется автоматически после расчёта)
 		html += '<div style="margin-top: 20px; display: flex; gap: 10px; flex-wrap: wrap;">';
-		html += '<button type="button" class="btn btn-primary" onclick="CalculatorPage.saveCalculation()">Сохранить</button>';
 		const exportId = this.currentCalculationId ? this.currentCalculationId : '';
 		html += '<button type="button" class="btn btn-secondary" onclick="CalculatorPage.exportCalculation(' + (exportId ? exportId : '') + ')">Экспорт PDF</button>';
 		html += '<button type="button" class="btn btn-secondary" onclick="CalculatorPage.printCalculation(' + (exportId ? exportId : '') + ')">Печать</button>';
@@ -359,33 +362,31 @@ const CalculatorPage = {
 		container.innerHTML = html;
 	},
 
-	async saveCalculation() {
+	async saveCalculation(silent = false) {
 		if (!this.currentResult) {
-			alert('Сначала выполните расчет');
+			if (!silent) alert('Сначала выполните расчет');
 			return;
 		}
 
 		const productName = document.getElementById('productName').value.trim();
 		if (!productName) {
-			alert('Название изделия обязательно для заполнения');
+			alert('Название изделия обязательно для заполнения. Расчет не сохранён.');
 			document.getElementById('productName').focus();
 			return;
 		}
 
 		try {
 			if (this.currentCalculationId) {
-				// Обновляем существующий расчет
 				await API.updateCalculation({
 					id: this.currentCalculationId,
 					...this.currentResult
 				});
-				alert('Расчет успешно обновлен');
+				if (!silent) alert('Расчет успешно обновлен');
 			} else {
-				// Создаем новый расчет
 				const response = await API.saveCalculation(this.currentResult);
 				this.currentCalculationId = response.id;
-				alert('Расчет успешно сохранен');
-				// Обновляем кнопки в результатах
+				if (!silent) alert('Расчет успешно сохранен');
+				// Обновляем блок результатов (кнопки Экспорт/Печать с актуальным ID)
 				this.showResults(this.currentResult.result);
 			}
 		} catch (error) {
